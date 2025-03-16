@@ -346,8 +346,8 @@ abstract class Bot extends Joueur {
         // Si la main est vide, on passe
         if (main == null || main.isEmpty()) return null;
 
-        int seuil = 80;     // Défini à partir de quelle scoreon peut prendre
-        int seuilHaut = 115; // Défini à partir de quelle scoreon peut prendre en fin de partie
+        int seuil = 80;     // Défini à partir de quelle score on peut prendre
+        int seuilHaut = 115; // Défini à partir de quelle score on peut prendre en fin de partie
 
         if (atoutRate.isEmpty()) {
             // On évalue la main pour chaque couleur
@@ -492,7 +492,7 @@ abstract class Bot extends Joueur {
     }
 
     // Implémentation de l'algorithme miniMax
-    protected Carte exceptedMiniMax(Plis plis, int noCurrentPlayeur, int deepth) {
+    protected Carte exceptedMiniMax(Plis plis, int noCurrentPlayeur, int maxDeepth) {
         List<Carte> playable = Rules.playable(plis, this);
         Carte meilleureCarte = null;
         float meilleureValeur = -1;
@@ -509,7 +509,7 @@ abstract class Bot extends Joueur {
 
             newCartesJouees.add(carte);
 
-            float valeur = minValue(p, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, 0, 0, newCartesJouees);
+            float valeur = minValue(p, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, 0, maxDeepth, 0, newCartesJouees);
 
             if (valeur > meilleureValeur) {
                 meilleureValeur = valeur;
@@ -520,65 +520,71 @@ abstract class Bot extends Joueur {
     }
 
 
-    private float minValue(Plis plis, Carte c, int noCurrentPlayeur, int deepth, float globalSum, Set<Carte> cartesJouees) {
-        if (terminalTest(cartesJouees) || deepth == 2) return utility(globalSum + plis.getValue());
+    private float minValue(Plis plis, Carte c, int noCurrentPlayeur, int deepth, int maxDeepth, float globalSum, Set<Carte> cartesJouees) {
+        Plis modele;
+        float localSum = globalSum;
+
+        // Si le plis est fini
+        if (plis.getIndex() == 4) {
+            modele = new Plis(); // Reprend sur un nouveau plis
+            // Si l'equipe du bot gagne ce plis on le note
+            if (plis.getEquipe().equals(equipe)) localSum += plis.getValue();
+        }
+        else modele = new Plis(plis);
+
+        System.out.println("min : "+deepth);
+        if (terminalTest(cartesJouees) || deepth == maxDeepth) return utility(localSum);
 
         List<Carte> playable = Rules.successeur(plis, noCurrentPlayeur);
         float minValeur = Integer.MAX_VALUE;
 
         for (Carte carte : playable) {
             if (!cartesJouees.contains(carte)) {
-                Plis p;
-                float localSum = globalSum;
+                Plis tmp = new Plis(modele);
 
-                // Si le plis est fini
-                if (plis.getIndex() == 4) {
-                    p = new Plis(); // Reprend sur un nouveau plis
-                    // Si l'equipe du bot gagne ce plis on le note
-                    if (p.getEquipe().equals(equipe)) localSum += plis.getValue();
-                }
-                else p = new Plis(plis);
-
-                p.addCard(Game.joueurs[noCurrentPlayeur], carte);
+                tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
                 // Copie le Set pour éviter de modifier l’original
                 Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
                 newCartesJouees.add(carte);
 
-                minValeur = Math.min(minValeur , maxValue(p, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, deepth++, localSum, newCartesJouees));
+                minValeur = Math.min(minValeur , maxValue(tmp, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, deepth+1, maxDeepth, localSum, newCartesJouees));
             }
         }
         return minValeur;
     }
 
 
-    private float maxValue(Plis plis, Carte c, int noCurrentPlayeur, int deepth, float globalSum, Set<Carte> cartesJouees) {
-        if (terminalTest(cartesJouees) || deepth == 2) return utility(globalSum + plis.getValue());
+    private float maxValue(Plis plis, Carte c, int noCurrentPlayeur, int deepth, int maxDeepth, float globalSum, Set<Carte> cartesJouees) {
+        Plis modele;
+        float localSum = globalSum;
+
+        // Si le plis est fini
+        if (plis.getIndex() == 4) {
+            modele = new Plis(); // Reprend sur un nouveau plis
+            // Si l'equipe du bot gagne ce plis on le note
+            if (plis.getEquipe().equals(equipe)) localSum += plis.getValue();
+        }
+        else modele = new Plis(plis);
+
+        System.out.println("max : "+deepth);
+        if (terminalTest(cartesJouees) || deepth == maxDeepth) return utility(localSum);
 
         List<Carte> playable = Rules.successeur(plis, noCurrentPlayeur);
-        float maxValue = -1;
+        float minValeur = Integer.MAX_VALUE;
 
         for (Carte carte : playable) {
             if (!cartesJouees.contains(carte)) {
-                Plis p;
-                float localSum = globalSum;
+                Plis tmp = new Plis(modele);
 
-                // Si le plis est fini
-                if (plis.getIndex() == 4) {
-                    p = new Plis(); // Reprend sur un nouveau plis
-                    // Si l'equipe du bot gagne ce plis on le note
-                    if (p.getEquipe().equals(equipe)) localSum += plis.getValue();
-                }
-                else p = new Plis(plis);
-
-                p.addCard(Game.joueurs[noCurrentPlayeur], carte);
+                tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
                 // Copie le Set pour éviter de modifier l’original
                 Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
                 newCartesJouees.add(carte);
 
-                maxValue = Math.max(maxValue , minValue(p, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, deepth++, localSum, newCartesJouees));
+                minValeur = Math.max(minValeur , minValue(tmp, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, deepth+1, maxDeepth, localSum, newCartesJouees));
             }
         }
-        return maxValue;
+        return minValeur;
     }
 
 
@@ -605,6 +611,8 @@ abstract class Bot extends Joueur {
     public static void inference(Plis before, Carte carte, Joueur j) {
         Carte asked = before.getPlis()[0];
 
+        if (asked == null) return;
+
         // Si le joueur ne joue pas la couleur demandé c'est qu'il n'en a pas
         if (! asked.getCouleur().equals(carte.getCouleur())) {
             removeAllCardsOfColor(asked.getCouleur(), j.noPlayer);
@@ -620,9 +628,11 @@ abstract class Bot extends Joueur {
                 removeAllCardsOfColor(colorAtout, j.noPlayer);
         }
 
-        // Pour tout les joueurs enlève la proba qu'ils joue la carte qui viens d'etre joué
-        for (int i = 0; i < Game.NB_PLAYERS; i++)
-            cardsProbaPerPlayer.get(i).get(carte.getCouleur()).remove(carte);
+        for (int i = 0; i < Game.NB_PLAYERS; i++) {
+            Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(i);
+            if (proba != null)
+                proba.getOrDefault(carte.getCouleur(), Collections.emptyMap()).remove(carte);
+        }             
     }
 
 
@@ -638,6 +648,8 @@ abstract class Bot extends Joueur {
         Map<Carte, Float> cards = cardsProbaPerPlayer.get(noPlayer).get(asked.getCouleur());
         int startedPoint = asked.getType().ordinal();
         int endedPoint = Type.values().length;
+
+        if (cards == null) return;
 
         for (int i = startedPoint+1; i < endedPoint; i++)
             cards.remove(new Carte(asked.getCouleur(), Type.values()[i]));
@@ -661,7 +673,7 @@ class BotDebutant extends Bot {
 
     @Override
     public Paquet.Carte jouer(Plis plis) {
-        final int DEEPTH = 2;   // Profondeur dans l'arbre de recherche
+        final int DEEPTH = 4;   // Profondeur dans l'arbre de recherche
 
         System.out.println("\nJeu du bot Débutant: "+ main);
         System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));

@@ -64,7 +64,7 @@ public abstract class Rules {
         if (cardsOfColor != null && !cardsOfColor.isEmpty()) return cardsOfColor;
 
         // Si l'equipe du jouer a le plis, il peut jouer ce qu'il veut
-        if (player.getEquipe().equals(contexte.getEquipe())) return getAllCards(player);
+        if (contexte.isForPlayer(player)) return getAllCards(player);
 
         // Le joueur n'a pas la couleur demandée, il doit alors couper s'il possède des atouts.
         List<Carte> atoutCards = getCardsOfColor(player, Joueur.colorAtout);
