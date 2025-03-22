@@ -686,25 +686,22 @@ abstract class Bot extends Joueur {
     public static void inference(Plis before, Carte carte, Joueur j) {
         Carte asked = before.getPlis()[0];
 
-        distributeProba(carte, j.getNoPlayer());
-
         // Si le joueur est le 1er a jouer on ne déduis rien des règles
-        if (asked == null) return;
+        if (asked != null) {
+            // Si le joueur ne joue pas la couleur demandé c'est qu'il n'en a pas
+            if (! asked.getCouleur().equals(carte.getCouleur())) {
+                removeAllCardsOfColor(asked.getCouleur(), j.noPlayer);
 
-        // Si le joueur ne joue pas la couleur demandé c'est qu'il n'en a pas
-        if (! asked.getCouleur().equals(carte.getCouleur())) {
-            removeAllCardsOfColor(asked.getCouleur(), j.noPlayer);
+                // Si le joueur coupe
+                if (carte.getCouleur().getIsAtout())
+                    // Si il sous coupe -> il a pas mieux que l'atout demandé
+                    if (before.getPowerfullCard().compareTo(carte) > 0)
+                        cuteHigherCards(asked, j.noPlayer);
 
-            // Si le joueur coupe
-            if (carte.getCouleur().getIsAtout())
-                // Si il sous coupe -> il a pas mieux que l'atout demandé
-                if (before.getPowerfullCard().compareTo(carte) > 0)
-                    cuteHigherCards(asked, j.noPlayer);
-
-            // Si le joueur ne coupe pas et n'a pas le pli -> pas d'atout en plus
-            else if (!before.isForPlayer(j)) removeAllCardsOfColor(colorAtout, j.noPlayer);
+                // Si le joueur ne coupe pas et n'a pas le pli -> pas d'atout en plus
+                else if (!before.isForPlayer(j)) removeAllCardsOfColor(colorAtout, j.noPlayer);
+            }
         }
-
         // On enlève la proba de jouer la carte qui vient d'etre joué de tout les joueurs
         for (int i = 0; i < Game.NB_PLAYERS; i++) {
             Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(i);
@@ -719,11 +716,14 @@ abstract class Bot extends Joueur {
         Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(noPlayer);
 
         if (proba != null) {
-            // Récupère toutes les cartes possibles dans la couleur
             Map<Carte, Float> cartes = proba.get(couleur);
-            // Pour chacune d'elle on distribut la proba
-            for(Carte c : cartes.keySet()) distributeProba(c, noPlayer);
-        }
+            if (cartes != null) {
+                // Crée une copie de l'ensemble des clés
+                List<Carte> copieCartes = new ArrayList<>(cartes.keySet());
+                for (Carte c : copieCartes)
+                    distributeProba(c, noPlayer);
+            }
+        }        
 
         // On coupe la map de cette couleur pour le joueur noPlayer car il n'en a plus
         cardsProbaPerPlayer.get(noPlayer).remove(couleur);
