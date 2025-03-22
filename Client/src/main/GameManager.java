@@ -65,6 +65,7 @@ public class GameManager {
         COMMANDMAPSERVER.put("AddCardOnGame", this::AddCardOnGame);
         COMMANDMAPSERVER.put("SetFirstPlayer", this::setFirstPlayer);
         COMMANDMAPSERVER.put("UpdateScore", this::updateScore);
+        COMMANDMAPSERVER.put("End8Plis", unused -> endPlis());
     }
 
     /**
@@ -174,6 +175,10 @@ public class GameManager {
 
     private void updateScore(String scores) {
         EventManager.getInstance().publish(NAMEPUBLISH, "UpdateScore:"+scores);
+    }
+
+    private void endPlis() {
+        EventManager.getInstance().publish(NAMEPUBLISH, "End8Plis:$");
     }
 
 

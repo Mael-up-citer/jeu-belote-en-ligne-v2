@@ -328,26 +328,35 @@ abstract class Bot extends Joueur {
         super(name);
 
         cardsProbaPerPlayer = new HashMap<>();
+    }
 
-        // Remplie les map de sorte qu'initialement on ait une equiprobabilité: 1/24
-        // Car on enlève au 32 carte les 8 du jeu d'un point de vue statiqtique !
+
+    public static void endDistrib() {
+        // Remplit les maps en attribuant une probabilité initiale de 1/4
+        // à chaque joueur pour posséder chaque carte, en préservant l'ordre d'insertion
         for (int i = 0; i < Game.NB_PLAYERS; i++) {
-            cardsProbaPerPlayer.put(i, new HashMap<>());
+            cardsProbaPerPlayer.put(i, new LinkedHashMap<>());
             for (Couleur c : Couleur.values()) {
-                cardsProbaPerPlayer.get(i).put(c, new HashMap<>());
-                for (Type t : Type.values())
-                    cardsProbaPerPlayer.get(i).get(c).put(new Carte(c, t), 4.17f);
+                cardsProbaPerPlayer.get(i).put(c, new LinkedHashMap<>());
+                // L'ordre ordinal de l'énumération est conservé par Type.values()
+                for (Type t : Type.values()) {
+                    Carte carte = new Carte(c, t);
+                    cardsProbaPerPlayer.get(i).get(c).put(carte, 0.25f);
+                }
             }
         }
+        System.out.println(cardsProbaPerPlayer);
     }
+    
 
     @Override
     public Couleur parler(int tour) {
         // Si la main est vide, on passe
         if (main == null || main.isEmpty()) return null;
 
-        int seuil = 80;     // Défini à partir de quelle score on peut prendre
-        int seuilHaut = 115; // Défini à partir de quelle score on peut prendre en fin de partie
+        final int seuil = 85;     // Défini à partir de quelle score on peut prendre
+        final int seuilHaut = 115; // Défini à partir de quelle score on peut prendre en fin de partie
+        Couleur color = null;   // Défini la couleur de l'atout choisit ou null si on passe
 
         if (atoutRate.isEmpty()) {
             // On évalue la main pour chaque couleur
@@ -356,40 +365,38 @@ abstract class Bot extends Joueur {
                 atoutRate.put(couleur, evaluerScore(couleur));
             }
 
-            if (getEquipe().getScore() > 800 && atoutRate.get(colorAtout) > seuilHaut) return colorAtout;
-            else if (atoutRate.get(colorAtout) > seuil) return colorAtout;
+            if (getEquipe().getScore() > 800 && atoutRate.get(colorAtout) > seuilHaut) color = colorAtout;
+            else if (atoutRate.get(colorAtout) > seuil) color = colorAtout;
         }
         else {
-            Couleur c = betterRate();
+            Couleur verif = betterRate();
 
-            if (getEquipe().getScore() > 800 && atoutRate.get(c) > seuilHaut) {
-                atoutRate.clear();
-                return c;
-            }
-            else if (atoutRate.get(c) > seuil) {
-                atoutRate.clear();
-                return c;
-            }
+            if ((getEquipe().getScore() > 800 && atoutRate.get(verif) > seuilHaut)
+                        ||
+            (atoutRate.get(verif) > seuil))
+                color = verif;
         }
-        return null;
+        atoutRate.clear();
+        return color;
     }
 
 
     private int evaluerScore(Paquet.Carte.Couleur couleur) {
         // On simule que la couleur passée en paramètre est l'atout
         couleur.setIsAtout(true);
-        
-        int score = calculerScoreAtout() +
-                    calculerScoreMaitresses() +
-                    calculerBonusBelote() +
-                    calculerBonusLongueEtCoupe();
+
+        int score = calculerScoreAtout(main) +
+                    calculerScoreMaitresses(main) +
+                    calculerBonusBelote(main) +
+                    calculerBonusLongueEtCoupe(main);
         
         // Rétablir l'état initial de la couleur atout
         couleur.setIsAtout(false);
         return score;
     }
-    
-    private int calculerScoreAtout() {
+
+
+    private int calculerScoreAtout(HashMap<Couleur, List<Carte>> main) {
         final int POIDS_NB_ATOUT = 5;
         final float POIDS_TOTAL_POWER_ATOUT = 1.66f;
 
@@ -403,7 +410,7 @@ abstract class Bot extends Joueur {
     }
 
 
-    private int calculerScoreMaitresses() {
+    private int calculerScoreMaitresses(HashMap<Couleur, List<Carte>> main) {
         final int POIDS_NB_MAITRESSE = 3;
         final int POIDS_TOTAL_POWER_MAITRESSE = 1;
 
@@ -430,7 +437,7 @@ abstract class Bot extends Joueur {
     }
 
 
-    private int calculerBonusBelote() {
+    private int calculerBonusBelote(HashMap<Couleur, List<Carte>> main) {
         final int BONUS_BELOTE = 20;
         boolean roi = false, dame = false;
  
@@ -447,7 +454,7 @@ abstract class Bot extends Joueur {
      * - BONUS_LONGUE si la couleur contient au moins SEUIL_LONGUE cartes maîtresses,
      *   avec un bonus de base et un bonus incrémental par carte supplémentaire.
      */
-    private int calculerBonusLongueEtCoupe() {
+    private int calculerBonusLongueEtCoupe(HashMap<Couleur, List<Carte>> main) {
         final int BONUS_COUPE = 10;
         final int BONUS_LONGUE_DE_BASE = 20;
         final int BONUS_LONGUE_INCREMENT = 10;
@@ -491,32 +498,45 @@ abstract class Bot extends Joueur {
         return res;
     }
 
-    // Implémentation de l'algorithme miniMax
+
+    // Implémentation de l'algorithme MiniMax pondéré par les probabilités
     protected Carte exceptedMiniMax(Plis plis, int noCurrentPlayeur, int maxDeepth) {
+        // Récupère les cartes jouable par le joueur dans ce plis
         List<Carte> playable = Rules.playable(plis, this);
-        Carte meilleureCarte = null;
-        float meilleureValeur = -1;
+        Carte meilleureCarte = null;    // la carte qu'il faut jouer
+        float meilleureValeur = -1; // Valeur du coup la meilleur carte
 
+        // Parcourt chaque carte jouable
         for (Carte carte : playable) {
-            // Clone le plis donnée
-            Plis p = new Plis(plis);
-            // Simule le fait de jouer chaque carte
-            p.addCard(this, carte);
-            // Copie le Set pour éviter de modifier l’original, les set sont init avec la main du joueur
-            Set<Carte> newCartesJouees = main.values().stream()
-            .flatMap(List::stream)
-            .collect(Collectors.toSet());
+            System.out.println("simulation de: "+carte);
 
+            // Clone le pli donné et simule le coup joué
+            Plis p = new Plis(plis);
+            p.addCard(this, carte);
+
+            // Le set est initialisé avec la main du joueur
+            Set<Carte> newCartesJouees = main.values().stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toSet());
+
+            // On ajoute aussi les cartes déjà jouées
+            newCartesJouees.addAll(Game.cartePlay.values()
+                .stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toSet()));
+
+            // Ajoute la carte que l'on vient de jouer
             newCartesJouees.add(carte);
 
-            float valeur = minValue(p, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, 0, maxDeepth, 0, newCartesJouees);
+            // Calcul de la valeur de ce coup via le minValue pondéré
+            float valeur = minValue(p, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, 0, maxDeepth, 0, newCartesJouees);
 
             if (valeur > meilleureValeur) {
                 meilleureValeur = valeur;
                 meilleureCarte = carte;
             }
         }
-            return meilleureCarte;
+        return meilleureCarte;
     }
 
 
@@ -524,30 +544,51 @@ abstract class Bot extends Joueur {
         Plis modele;
         float localSum = globalSum;
 
-        // Si le plis est fini
+        // Si le pli est fini, on réinitialise le modèle et on ajoute la valeur du pli si l'équipe du bot gagne
         if (plis.getIndex() == 4) {
-            modele = new Plis(); // Reprend sur un nouveau plis
-            // Si l'equipe du bot gagne ce plis on le note
+            modele = new Plis(); // Nouveau pli
+
             if (plis.getEquipe().equals(equipe)) localSum += plis.getValue();
         }
         else modele = new Plis(plis);
 
-        System.out.println("min : "+deepth);
-        if (terminalTest(cartesJouees) || deepth == maxDeepth) return utility(localSum);
+        // Test terminal
+        if (terminalTest(cartesJouees) || deepth == maxDeepth) return utility(localSum, cartesJouees);
 
-        List<Carte> playable = Rules.successeur(plis, noCurrentPlayeur);
-        float minValeur = Integer.MAX_VALUE;
+        // Liste de toutes les cartes possibles dans le plis
+        List<Carte> playable;
 
+        // Si c'est le tour du joueur on calcul à partir de playable
+        if (noCurrentPlayeur == noPlayer) playable = Rules.playable(plis, this);
+        // Sinon on regarde toutes les possibilitées
+        else playable = Rules.successeur(plis, noCurrentPlayeur);
+
+        float minValeur = Float.POSITIVE_INFINITY;
+
+        // Parcour toutes les cartes possibles
         for (Carte carte : playable) {
+            System.out.println("\nMin simulation: "+carte);
+            // Si la carte n'est pas déja joué
             if (!cartesJouees.contains(carte)) {
                 Plis tmp = new Plis(modele);
-
                 tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
-                // Copie le Set pour éviter de modifier l’original
+
+                // Copie le set pour éviter de modifier l’original
                 Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
                 newCartesJouees.add(carte);
 
-                minValeur = Math.min(minValeur , maxValue(tmp, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, deepth+1, maxDeepth, localSum, newCartesJouees));
+                // Récupère la probabilité associée à cette carte pour le joueur noCurrentPlayeur
+                float proba = 0f;
+                Map<Couleur, Map<Carte, Float>> probaParCouleur = cardsProbaPerPlayer.get(noCurrentPlayeur);
+                if (probaParCouleur != null) {
+                    Map<Carte, Float> probaCarte = probaParCouleur.getOrDefault(carte.getCouleur(), Collections.emptyMap());
+                    proba = probaCarte.getOrDefault(carte, 0f);
+                }
+
+                float brancheValue = maxValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
+ 
+                // Pondération : plus la probabilité est faible, moins ce coup compte
+                minValeur = Math.min(minValeur, brancheValue * proba);
             }
         }
         return minValeur;
@@ -558,50 +599,84 @@ abstract class Bot extends Joueur {
         Plis modele;
         float localSum = globalSum;
 
-        // Si le plis est fini
+        // Si le pli est fini
         if (plis.getIndex() == 4) {
-            modele = new Plis(); // Reprend sur un nouveau plis
-            // Si l'equipe du bot gagne ce plis on le note
+            modele = new Plis(); // Nouveau pli
+
             if (plis.getEquipe().equals(equipe)) localSum += plis.getValue();
         }
         else modele = new Plis(plis);
 
-        System.out.println("max : "+deepth);
-        if (terminalTest(cartesJouees) || deepth == maxDeepth) return utility(localSum);
+        if (terminalTest(cartesJouees) || deepth == maxDeepth) return utility(localSum, cartesJouees);
 
-        List<Carte> playable = Rules.successeur(plis, noCurrentPlayeur);
-        float minValeur = Integer.MAX_VALUE;
+        // Liste de toutes les cartes possibles dans le plis
+        List<Carte> playable;
+
+        // Si c'est le tour du joueur on calcul à partir de playable
+        if (noCurrentPlayeur == noPlayer) playable = Rules.playable(plis, this);
+        // Sinon on regarde toutes les possibilitées
+        else playable = Rules.successeur(plis, noCurrentPlayeur);
+
+        float bestValeur = -1;
 
         for (Carte carte : playable) {
+            System.out.println("\nMax simulation: "+carte);
+            // Si la carte n'a pas été joué
             if (!cartesJouees.contains(carte)) {
                 Plis tmp = new Plis(modele);
-
                 tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
-                // Copie le Set pour éviter de modifier l’original
+
                 Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
                 newCartesJouees.add(carte);
 
-                minValeur = Math.max(minValeur , minValue(tmp, carte, (noCurrentPlayeur+1) % Game.NB_PLAYERS, deepth+1, maxDeepth, localSum, newCartesJouees));
+                // Récupère la probabilité associée à cette carte pour le joueur noCurrentPlayeur
+                float proba = 0f;
+                Map<Couleur, Map<Carte, Float>> probaParCouleur = cardsProbaPerPlayer.get(noCurrentPlayeur);
+                if (probaParCouleur != null) {
+                    Map<Carte, Float> probaCarte = probaParCouleur.getOrDefault(carte.getCouleur(), Collections.emptyMap());
+                    proba = probaCarte.getOrDefault(carte, 0f);
+                }
+
+                float brancheValue = minValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
+                bestValeur = Math.max(bestValeur, brancheValue * proba);
             }
         }
-        return minValeur;
+        return bestValeur;
     }
 
 
-    // Si on a fini le plis retourne vrai
+    // Test terminal : si toutes les cartes ont été jouées (par exemple, dans un jeu à 32 cartes)
     private boolean terminalTest(Set<Carte> cartesJouees) {
+        System.out.println("terminal test: "+cartesJouees.size());
         return cartesJouees.size() == 32;
     }
 
 
     // Test de terminaison anticipé
-    // la valeur du jeu + la nombre de pts accumulé
-    private float utility(float globalSum) {
-        return calculerScoreAtout() +
-        calculerScoreMaitresses() +
-        calculerBonusBelote() +
-        calculerBonusLongueEtCoupe() +
-        globalSum;
+    // la valeur du jeu + la nombre de pts accumulé, la valeur du jeu est null si on est dans le cas terminal
+    private float utility(float globalSum, Set<Carte> cartesJouees) {
+        // Copie complète de main avant les modifications
+        HashMap<Couleur, List<Carte>> mainTmp = new HashMap<>(main.entrySet().stream()
+        .collect(Collectors.toMap(
+            Map.Entry::getKey,
+            e -> new ArrayList<>(e.getValue()) // Copie indépendante de chaque liste
+        )));
+
+        // Modifier la copie et non l'original
+        for (Carte carte : cartesJouees) {
+            List<Carte> cartesDeCetteCouleur = mainTmp.get(carte.getCouleur());
+            if (cartesDeCetteCouleur != null) cartesDeCetteCouleur.remove(carte);
+        }
+
+        float mainScore = calculerScoreAtout(mainTmp) +
+        calculerScoreMaitresses(mainTmp) +
+        calculerBonusBelote(mainTmp) +
+        calculerBonusLongueEtCoupe(mainTmp);
+
+        System.out.println("le score de la main est de: "+mainScore);
+        System.out.println("le score du jeu est de: "+globalSum);
+
+        return mainScore + globalSum;
     }
 
 
@@ -611,6 +686,9 @@ abstract class Bot extends Joueur {
     public static void inference(Plis before, Carte carte, Joueur j) {
         Carte asked = before.getPlis()[0];
 
+        distributeProba(carte, j.getNoPlayer());
+
+        // Si le joueur est le 1er a jouer on ne déduis rien des règles
         if (asked == null) return;
 
         // Si le joueur ne joue pas la couleur demandé c'est qu'il n'en a pas
@@ -618,41 +696,100 @@ abstract class Bot extends Joueur {
             removeAllCardsOfColor(asked.getCouleur(), j.noPlayer);
 
             // Si le joueur coupe
-            if (carte.getCouleur().getIsAtout()) {
+            if (carte.getCouleur().getIsAtout())
                 // Si il sous coupe -> il a pas mieux que l'atout demandé
                 if (before.getPowerfullCard().compareTo(carte) > 0)
                     cuteHigherCards(asked, j.noPlayer);
-            }
-            // Si le joueur ne coupe pas et n'a pas le pli -> pas d'atout
-            else if (!before.isForPlayer(j))
-                removeAllCardsOfColor(colorAtout, j.noPlayer);
+
+            // Si le joueur ne coupe pas et n'a pas le pli -> pas d'atout en plus
+            else if (!before.isForPlayer(j)) removeAllCardsOfColor(colorAtout, j.noPlayer);
         }
 
+        // On enlève la proba de jouer la carte qui vient d'etre joué de tout les joueurs
         for (int i = 0; i < Game.NB_PLAYERS; i++) {
             Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(i);
             if (proba != null)
                 proba.getOrDefault(carte.getCouleur(), Collections.emptyMap()).remove(carte);
-        }             
+        }
     }
 
 
     // Enlève toutes les cartes d'une couleur pour un jouer donné
     private static void removeAllCardsOfColor(Couleur couleur, int noPlayer) {
+        Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(noPlayer);
+
+        if (proba != null) {
+            // Récupère toutes les cartes possibles dans la couleur
+            Map<Carte, Float> cartes = proba.get(couleur);
+            // Pour chacune d'elle on distribut la proba
+            for(Carte c : cartes.keySet()) distributeProba(c, noPlayer);
+        }
+
+        // On coupe la map de cette couleur pour le joueur noPlayer car il n'en a plus
         cardsProbaPerPlayer.get(noPlayer).remove(couleur);
     }
 
 
     // Pour une couleur et un joueur données:
     // enlève les carte qui sont au dessus d'une certaine carte
+    // Dans le proba d'un joueur donné
     private static void cuteHigherCards(Carte asked, int noPlayer) {
         Map<Carte, Float> cards = cardsProbaPerPlayer.get(noPlayer).get(asked.getCouleur());
-        int startedPoint = asked.getType().ordinal();
-        int endedPoint = Type.values().length;
 
         if (cards == null) return;
 
-        for (int i = startedPoint+1; i < endedPoint; i++)
-            cards.remove(new Carte(asked.getCouleur(), Type.values()[i]));
+        for (Type t : Type.values()) {
+            Carte c = new Carte(asked.getCouleur(), t);
+            if (asked.compareTo(c) <= 0) distributeProba(c, noPlayer);
+        }
+    }
+
+
+    // On enlève une carte du jeu d'un joueur et on distribut cette proba équitablement
+    // Avec les joueurs qui ont encore des chances d'avoir cette carte
+    private static void distributeProba(Carte carte, int noPlayer) {
+        // On doit répartir les proba avec les autres joueurs !
+        // 1. Récupère la proba de la carte à enlever
+        Float cardProba = cardsProbaPerPlayer.get(noPlayer).get(carte.getCouleur()).get(carte);
+
+        // 2. Calcul la proba a add à chaque joueur qui possède cette carte
+        Float additionalProba = cardProba / nbPossibleCardHowner(carte, noPlayer);
+
+        // 3. On l'ajoute a chaque carte joueur
+        for (int i = 0; i < Game.NB_PLAYERS; i++) {
+            if (i != noPlayer) {
+                Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(i);
+
+                if (proba != null) {
+                    Map<Carte, Float> probaColor = proba.get(carte.getCouleur());
+
+                    if (probaColor != null) {
+                        Float initialProba = probaColor.get(carte);
+                        if (initialProba != null)
+                            probaColor.put(carte, initialProba+additionalProba);
+                    }
+                }
+            }
+        }
+        // Enlève la carte dans les proba du joueur qui vient de la jouer
+        cardsProbaPerPlayer.get(noPlayer).get(carte.getCouleur()).remove(carte);
+    }
+
+
+    // Donne le nombre de joueur qui on encore une proba d'avoir la carte
+       private static int nbPossibleCardHowner(Carte carte, int noPlayer) {
+        int cpt = 0;
+
+        for (int i = 0; i < Game.NB_PLAYERS; i++) {
+            if (i != noPlayer) {
+                Map<Couleur, Map<Carte, Float>> proba = cardsProbaPerPlayer.get(i);
+                if (proba != null) {
+                    Map<Carte, Float> probaColor = proba.get(carte.getCouleur());
+                    if ((probaColor != null) && (probaColor.get(carte) != null)) cpt++;
+                }
+            }
+        }
+        return cpt;
     }
 
     protected Carte exceptedMiniMaxAlphaBeta(Plis plis, int noCurrentPlayeur, int deepth) {
@@ -673,7 +810,7 @@ class BotDebutant extends Bot {
 
     @Override
     public Paquet.Carte jouer(Plis plis) {
-        final int DEEPTH = 4;   // Profondeur dans l'arbre de recherche
+        final int DEEPTH = 2;   // Profondeur dans l'arbre de recherche
 
         System.out.println("\nJeu du bot Débutant: "+ main);
         System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));

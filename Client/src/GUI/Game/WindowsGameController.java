@@ -144,7 +144,7 @@ public class WindowsGameController extends Gui {
     // Table de dispatching pour associer les commandes à leurs méthodes
     private final Map<String, Consumer<String>> COMMANDMAP = new HashMap<>();
 
-    private int noPlayer = 0; // Numéro du joueur
+    private int noPlayer; // Numéro du joueur
     private int noFirstPlayer;  // Numéro du 1er joueur a jouer dans ce tour
     private int beloteReBelote = 0; // Suivi de belote rebelote si == 2 le joueur à dit belote rebelote
     private boolean playeurGotIt = false;   // T si le joueur peut faire belote rebelotte
@@ -221,13 +221,12 @@ public class WindowsGameController extends Gui {
      */
     private void onGameStart(String noply) {
         try {
-            this.noPlayer = Integer.parseInt(noply);
+            noPlayer = Integer.parseInt(noply);
 
             joueurDispatch.put(noPlayer, Mycadre);
             joueurDispatch.put((noPlayer+1)%4, leftCadre);
             joueurDispatch.put((noPlayer+2)%4, frontCadre);
             joueurDispatch.put((noPlayer+3)%4, rightCadre);
-            noFirstPlayer = 1; // Le tout 1er joueur a jouer est le 1
 
         } catch (Exception e) {
         }
@@ -247,6 +246,7 @@ public class WindowsGameController extends Gui {
         });
     }       
 
+
     /**
      * Méthode d'initialisation de la table de dispatching. 
      * Elle associe chaque commande à une méthode de traitement correspondante.
@@ -264,12 +264,15 @@ public class WindowsGameController extends Gui {
         COMMANDMAP.put("AddCardOnGame", this::addCardOnGame);
         COMMANDMAP.put("SetFirstPlayer", this::setFirstPlayer);
         COMMANDMAP.put("UpdateScore", this::updateScore);
+        COMMANDMAP.put("End8Plis", unused ->  endPlis());
     }
+
 
     // Met à jour le label indiquant le nombre de joueur présent / celui attendu
     private void onPlayerJoin(String message) {
         nbPlayer.setText("nombre de joueurs: "+message);
     }
+
 
     // Affiche les cartes du clients
     private void dispPlayerHand(String hand) {
@@ -288,6 +291,7 @@ public class WindowsGameController extends Gui {
         Mycadre.getChildren().addAll(deck.values());
     }
 
+
     // Affiche la carte du milieu
     private void dispMiddleCard(String carte) {
         colorMiddleCard = carte.split("De")[1];    // Garde en mémoir la couleur de la carte
@@ -301,6 +305,7 @@ public class WindowsGameController extends Gui {
         pause.play();
     }
 
+
     // Active tout les buttons atouts
     private void askAtout1() {
         // Rend visible la Pane d'atout
@@ -311,6 +316,7 @@ public class WindowsGameController extends Gui {
         Passer.setDisable(false);   // Active le button passer
     }
 
+
     // Active tout les buttons atouts
     private void askAtout2() {
         // Active tous les buttons du choix de l'atout
@@ -318,6 +324,7 @@ public class WindowsGameController extends Gui {
         // Désactive selui de la couleur de la carte du milieu
         handleOneAtoutButton(colorMiddleCard, true);
     }
+
 
     // Inverse l'etat d'activation des buttons du choix de l'atout
     private void handleAtoutButton(Boolean state) {
@@ -431,13 +438,15 @@ public class WindowsGameController extends Gui {
      * @param carteJouer le nom (ou identifiant) de la carte jouée
      */
     private void addCardOnGame(String carteJouer) {
+        System.out.println("le joueur numéro: "+noFirstPlayer+" joue");
+
         // Récupérer le FlowPane correspondant au joueur actuel
         FlowPane mainJoueur = joueurDispatch.get(noFirstPlayer);
 
         // Si le joueur qui joue est différent de moi
         if (noFirstPlayer != noPlayer)
-        // Supprime une image view de la main du joueur ennemie
-        mainJoueur.getChildren().remove(0);
+            // Supprime une image view de la main du joueur ennemie
+            mainJoueur.getChildren().remove(0);
 
         // Création d'une ImageView temporaire pour l'animation
         ImageView carteAnimee = new ImageView(new Image(getClass().getResource(prefix + carteJouer + suffix).toExternalForm()));
@@ -531,6 +540,12 @@ public class WindowsGameController extends Gui {
             labelScoreNous.setText(str[1]+"/1000");
             labelScoreEux.setText(str[0]+"/1000");
         }
+    }
+
+    // RAZ le labelle atout et de qui a pris
+    private void endPlis() {
+        joueurAPris.setText("");
+        labelAtoutEnCour.setGraphic(null);
     }
 
     public static void setIdGame(String idG) {

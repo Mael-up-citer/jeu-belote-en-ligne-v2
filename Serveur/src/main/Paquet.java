@@ -8,6 +8,7 @@ import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * La classe Paquet représente un paquet de 32 cartes de jeu.
@@ -143,6 +144,27 @@ public class Paquet {
             return this.couleur == other.couleur && this.type == other.type;
         }
 
+
+        /**
+         * Retourne une représentation sous forme de chaîne de caractères de la carte.
+         * Cette méthode combine le nom de la couleur et du type pour fournir une description de la carte.
+         * Exemple: "AS de COEUR"
+         * 
+         * @return Une chaîne de caractères représentant la carte.
+         */
+        @Override
+        public String toString() {
+            // Retourne une représentation lisible sous forme de chaîne, par exemple "AS de COEUR"
+            return type.name() + "De" + couleur.name();
+        }
+
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(couleur, type);
+        }
+
+
         /**
          * Calcule et retourne la valeur en points de la carte, en tenant compte de la couleur (atout ou non).
          * 
@@ -169,19 +191,6 @@ public class Paquet {
 
         public Type getType() {
             return type;
-        }
-
-        /**
-         * Retourne une représentation sous forme de chaîne de caractères de la carte.
-         * Cette méthode combine le nom de la couleur et du type pour fournir une description de la carte.
-         * Exemple: "AS de COEUR"
-         * 
-         * @return Une chaîne de caractères représentant la carte.
-         */
-        @Override
-        public String toString() {
-            // Retourne une représentation lisible sous forme de chaîne, par exemple "AS de COEUR"
-            return type.name() + "De" + couleur.name();
         }
     }
 

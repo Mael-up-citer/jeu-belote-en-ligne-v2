@@ -110,9 +110,10 @@ public class Game implements Runnable {
         for (int i = 0; i < NB_PLAYERS; i++)
             if (joueurs[i] instanceof Bot) joueurs[i].addCard(middleCard);
 
+        // Hypthèse l'atout est la carte du milieu
         Joueur.colorAtout = middleCard.getCouleur();
 
-        Paquet.Carte.Couleur atout = chooseAtout();
+        Couleur atout = chooseAtout();
 
         // Après le choix on leur enlève
         for (int i = 0; i < NB_PLAYERS; i++)
@@ -135,6 +136,7 @@ public class Game implements Runnable {
 
         // 2. Jouer
         while (nbTour >= 0) {
+            majAllClients("SetFirstPlayer:"+premierJoueur);
             for (int i = premierJoueur; i < premierJoueur+NB_PLAYERS; i++) {
                 Plis previous = new Plis(plis[plis.length - nbTour - 1]);
                 Paquet.Carte carteJouee = joueurs[i%NB_PLAYERS].jouer(plis[plis.length - nbTour - 1]);
@@ -152,7 +154,6 @@ public class Game implements Runnable {
             premierJoueur = plis[plis.length - nbTour - 1].getWinner();
             System.out.println("Le gagant est: "+joueurs[premierJoueur%NB_PLAYERS].getNom());
 
-            majAllClients("SetFirstPlayer:"+premierJoueur);
             nbTour--;
         }
 
@@ -169,8 +170,8 @@ public class Game implements Runnable {
     }
 
     // Détermine qu'elle sera l'atout du ces 8 plis
-    private Paquet.Carte.Couleur chooseAtout() {
-        Paquet.Carte.Couleur atout = null;
+    private Couleur chooseAtout() {
+        Couleur atout = null;
 
         atout = tourAtout(1);
 
@@ -253,17 +254,18 @@ public class Game implements Runnable {
                 ((Humain) joueur).notifier("SetMain:"+joueur.getMain().toString());
             }
         }
+        // Init la main des proba des cartes
+        Bot.endDistrib();
     }
+
 
     private void resetParty() {
         // 1. Reset toutes les mains
         for (Joueur joueur : joueurs)
             joueur.clearMain();
 
-        // 2. Previens les humains
-        for (Joueur joueur : joueurs)
-            if (joueur instanceof Humain)
-                ((Humain) joueur).notifier("SetMain:null");
+        // 2. Previens les humains en vidant leur main
+        majAllClients("SetMain:null");
 
         // 3. Coupe le paquet et remet l'index à 0
         paquet.coupe();
@@ -271,7 +273,15 @@ public class Game implements Runnable {
 
         // 4. Vider toutes les listes de cartes jouées mais garder les couleurs
         for (List<Paquet.Carte> cartes : cartePlay.values()) cartes.clear();
+
+        // 5. Envoie un message aux UI pour leur dire que les 8 plis sont fini
+        majAllClients("End8Plis:$");
+
+    
+        Bot.cardsProbaPerPlayer.clear();
+        Joueur.colorAtout = null;
     }
+
 
     /**
      * Vérifie si la partie est terminée.
@@ -291,6 +301,7 @@ public class Game implements Runnable {
         majAllClients("UpdateScore:"+equipes[0].getScore()+";"+equipes[1].getScore());
     }
 
+
     /**
      * Envoie un meme message à tous les joueurs humains.
      */
@@ -299,6 +310,7 @@ public class Game implements Runnable {
             if (joueur instanceof Humain)
                 ((Humain) joueur).notifier(message);
     }
+
 
     /**
      * Notifie tous les joueurs humains sauf un.
@@ -311,7 +323,8 @@ public class Game implements Runnable {
                 ((Humain) joueur).notifier(message);
     }
 
-        /**
+
+    /**
      * Attend que tous les joueurs (humains et IA) aient terminé leurs animations avant de continuer.
      * 
      * <p>Cette méthode utilise un {@link CountDownLatch} pour attendre la réponse des joueurs en parallèle,
@@ -385,7 +398,7 @@ public class Game implements Runnable {
      */
     private void endConnection() {
         for (Joueur joueur : joueurs)
-            if (joueur instanceof Humain)
+            if (joueur instanceof Humain) 
                 ((Humain) joueur).endConnection();
     }
 }
