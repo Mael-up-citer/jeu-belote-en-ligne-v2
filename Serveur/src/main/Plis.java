@@ -51,14 +51,14 @@ public class Plis {
             if (carteActuelleEstAtout && !cartePowerfullEstAtout) {
                 powerfullCard = carte;
                 maitre = j;
-                System.out.println("coupe");
+                //System.out.println("coupe");
             }
             // Cas 2 : Si les deux sont atouts, on garde la plus forte
             else if (carteActuelleEstAtout && cartePowerfullEstAtout) {
                 if (carte.compareTo(powerfullCard) > 0) {
                     powerfullCard = carte;
                     maitre = j;
-                    System.out.println("au desuss atout");
+                    //System.out.println("au desuss atout");
                 }
             }
             // Cas 3 : Si la carte actuelle est de la couleur demandée et que powerfullCard n'est pas un atout
@@ -66,7 +66,7 @@ public class Plis {
                 if (carte.compareTo(powerfullCard) > 0) {
                     powerfullCard = carte;
                     maitre = j;
-                    System.out.println("battu");
+                    //System.out.println("battu");
                 }
             }
         }

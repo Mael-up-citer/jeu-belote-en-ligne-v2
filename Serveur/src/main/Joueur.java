@@ -156,6 +156,7 @@ class Humain extends Joueur {
         this.socket = socket;
     }
 
+
     /**
      * Constructeur d'un joueur humain avec un nom et une connexion réseau.
      *
@@ -168,7 +169,8 @@ class Humain extends Joueur {
         this.in = in;
         this.out = out;
     }
- 
+
+
     /**
      * Joue un tour en interagissant avec le client via le réseau.
      */
@@ -193,6 +195,7 @@ class Humain extends Joueur {
         return null;
     }
 
+
     /**
      * Joue un tour en interagissant avec le client via le réseau.
      */
@@ -207,8 +210,7 @@ class Humain extends Joueur {
        // Récupère la carte joué
         Paquet.Carte carte = Paquet.Carte.parseCarte(cartePlaye);
 
-        System.out.println("Le joueur "+nom+"  a joué la carte "+carte);
-        System.out.println("main du joueur =  "+main);
+        System.out.println("carte joué: "+carte);
 
         // L'enlève de la main
         removeCarte(carte);
@@ -218,6 +220,7 @@ class Humain extends Joueur {
 
         return carte;
     }
+
 
     public String waitForClient() {
         // Code bloquant pour attendre un message entrant du client
@@ -244,16 +247,15 @@ class Humain extends Joueur {
         return null;  // Retourne null en cas d'erreur
     }    
 
+
     /**
      * Notifie le joueur avec un message.
      *
      * @param message Message à envoyer au joueur.
      */
     public void notifier(String message) {
-        if (out != null)
-            out.println(message);  // Envoie le message au client
-        else
-            System.err.println("Erreur: le flux de sortie est null.");
+        if (out != null) out.println(message);  // Envoie le message au client
+        else System.err.println("Erreur: le flux de sortie est null.");
     }
 
     /**
@@ -345,7 +347,6 @@ abstract class Bot extends Joueur {
                 }
             }
         }
-        System.out.println(cardsProbaPerPlayer);
     }
     
 
@@ -508,7 +509,7 @@ abstract class Bot extends Joueur {
 
         // Parcourt chaque carte jouable
         for (Carte carte : playable) {
-            System.out.println("simulation de: "+carte);
+            //System.out.println("simulation de: "+carte);
 
             // Clone le pli donné et simule le coup joué
             Plis p = new Plis(plis);
@@ -539,7 +540,7 @@ abstract class Bot extends Joueur {
         return meilleureCarte;
     }
 
-
+    // Simule l'équipe adverse ici
     private float minValue(Plis plis, Carte c, int noCurrentPlayeur, int deepth, int maxDeepth, float globalSum, Set<Carte> cartesJouees) {
         Plis modele;
         float localSum = globalSum;
@@ -558,16 +559,15 @@ abstract class Bot extends Joueur {
         // Liste de toutes les cartes possibles dans le plis
         List<Carte> playable;
 
-        // Si c'est le tour du joueur on calcul à partir de playable
-        if (noCurrentPlayeur == noPlayer) playable = Rules.playable(plis, this);
         // Sinon on regarde toutes les possibilitées
-        else playable = Rules.successeur(plis, noCurrentPlayeur);
+        playable = Rules.successeur(plis, noCurrentPlayeur);
 
-        float minValeur = Float.POSITIVE_INFINITY;
+        float expectedValue = 0f;  // Calcule l'espérance
+        float totalProba = 0f;  // Pour normaliser au cas où les probas ne font pas 1
 
         // Parcour toutes les cartes possibles
         for (Carte carte : playable) {
-            System.out.println("\nMin simulation: "+carte);
+            //System.out.println("\nMin simulation: "+carte);
             // Si la carte n'est pas déja joué
             if (!cartesJouees.contains(carte)) {
                 Plis tmp = new Plis(modele);
@@ -577,32 +577,26 @@ abstract class Bot extends Joueur {
                 Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
                 newCartesJouees.add(carte);
 
-                // Récupère la probabilité associée à cette carte pour le joueur noCurrentPlayeur
-                float proba = 0f;
-                Map<Couleur, Map<Carte, Float>> probaParCouleur = cardsProbaPerPlayer.get(noCurrentPlayeur);
-                if (probaParCouleur != null) {
-                    Map<Carte, Float> probaCarte = probaParCouleur.getOrDefault(carte.getCouleur(), Collections.emptyMap());
-                    proba = probaCarte.getOrDefault(carte, 0f);
+                float proba = getProbability(noCurrentPlayeur, carte);
+                if (proba > 0) {
+                    totalProba += proba;
+                    expectedValue += proba * maxValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
                 }
-
-                float brancheValue = maxValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
- 
-                // Pondération : plus la probabilité est faible, moins ce coup compte
-                minValeur = Math.min(minValeur, brancheValue * proba);
             }
         }
-        return minValeur;
+        return totalProba > 0 ? expectedValue / totalProba : 0f; // Normalisation
     }
 
 
+    // Simule le jeu de l'équipe du joueur en cours
     private float maxValue(Plis plis, Carte c, int noCurrentPlayeur, int deepth, int maxDeepth, float globalSum, Set<Carte> cartesJouees) {
         Plis modele;
         float localSum = globalSum;
-
+    
         // Si le pli est fini
         if (plis.getIndex() == 4) {
             modele = new Plis(); // Nouveau pli
-
+    
             if (plis.getEquipe().equals(equipe)) localSum += plis.getValue();
         }
         else modele = new Plis(plis);
@@ -612,42 +606,56 @@ abstract class Bot extends Joueur {
         // Liste de toutes les cartes possibles dans le plis
         List<Carte> playable;
 
-        // Si c'est le tour du joueur on calcul à partir de playable
-        if (noCurrentPlayeur == noPlayer) playable = Rules.playable(plis, this);
-        // Sinon on regarde toutes les possibilitées
-        else playable = Rules.successeur(plis, noCurrentPlayeur);
-
-        float bestValeur = -1;
-
-        for (Carte carte : playable) {
-            System.out.println("\nMax simulation: "+carte);
-            // Si la carte n'a pas été joué
-            if (!cartesJouees.contains(carte)) {
-                Plis tmp = new Plis(modele);
-                tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
-
-                Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
-                newCartesJouees.add(carte);
-
-                // Récupère la probabilité associée à cette carte pour le joueur noCurrentPlayeur
-                float proba = 0f;
-                Map<Couleur, Map<Carte, Float>> probaParCouleur = cardsProbaPerPlayer.get(noCurrentPlayeur);
-                if (probaParCouleur != null) {
-                    Map<Carte, Float> probaCarte = probaParCouleur.getOrDefault(carte.getCouleur(), Collections.emptyMap());
-                    proba = probaCarte.getOrDefault(carte, 0f);
+        // Si c'est le tour du joueur, on joue normalement
+        if (noCurrentPlayeur == noPlayer) {
+            playable = Rules.playable(plis, this);
+            float bestValeur = -1;
+    
+            for (Carte carte : playable) {
+                if (!cartesJouees.contains(carte)) {
+                    Plis tmp = new Plis(modele);
+                    tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
+    
+                    Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
+                    newCartesJouees.add(carte);
+    
+                    float brancheValue = minValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
+                    bestValeur = Math.max(bestValeur, brancheValue);
                 }
-
-                float brancheValue = minValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
-                bestValeur = Math.max(bestValeur, brancheValue * proba);
             }
+            return bestValeur;
         }
-        return bestValeur;
-    }
+        // Sinon, on prend en compte les probabilités car c'est un joueur dont les cartes ne sont pas connues
+        else {
+            playable = Rules.successeur(plis, noCurrentPlayeur);
+    
+            float expectedValue = 0f;
+            float totalProba = 0f;
+    
+            for (Carte carte : playable) {
+                if (!cartesJouees.contains(carte)) {
+                    Plis tmp = new Plis(modele);
+                    tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
+    
+                    Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
+                    newCartesJouees.add(carte);
+    
+                    float proba = getProbability(noCurrentPlayeur, carte);
+                    if (proba > 0) {
+                        totalProba += proba;
+                        expectedValue += proba * minValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
+                    }
+                }
+            }
+            // Normalisation pour éviter un retour à 0 si totalProba == 0
+            return totalProba > 0 ? expectedValue / totalProba : 0f;
+        }
+    }    
 
 
     // Test terminal : si toutes les cartes ont été jouées (par exemple, dans un jeu à 32 cartes)
     private boolean terminalTest(Set<Carte> cartesJouees) {
-        System.out.println("terminal test: "+cartesJouees.size());
+        //System.out.println("terminal test: "+cartesJouees.size());
         return cartesJouees.size() == 32;
     }
 
@@ -673,11 +681,22 @@ abstract class Bot extends Joueur {
         calculerBonusBelote(mainTmp) +
         calculerBonusLongueEtCoupe(mainTmp);
 
-        System.out.println("le score de la main est de: "+mainScore);
-        System.out.println("le score du jeu est de: "+globalSum);
+        //System.out.println("le score de la main est de: "+mainScore);
+        //System.out.println("le score du jeu est de: "+globalSum);
 
         return mainScore + globalSum;
     }
+
+
+    private float getProbability(int player, Carte carte) {
+        Map<Couleur, Map<Carte, Float>> probaParCouleur = cardsProbaPerPlayer.get(player);
+        if (probaParCouleur != null) {
+            Map<Carte, Float> probaCarte = probaParCouleur.getOrDefault(carte.getCouleur(), Collections.emptyMap());
+            return probaCarte.getOrDefault(carte, 0f);
+        }
+        return 0f;
+    }
+    
 
 
     // Méthode d'inferance qui selon un plis va esayer de recalculer la main d'un jouer
@@ -720,11 +739,9 @@ abstract class Bot extends Joueur {
             if (cartes != null) {
                 // Crée une copie de l'ensemble des clés
                 List<Carte> copieCartes = new ArrayList<>(cartes.keySet());
-                for (Carte c : copieCartes)
-                    distributeProba(c, noPlayer);
+                for (Carte c : copieCartes) distributeProba(c, noPlayer);
             }
         }        
-
         // On coupe la map de cette couleur pour le joueur noPlayer car il n'en a plus
         cardsProbaPerPlayer.get(noPlayer).remove(couleur);
     }
@@ -792,6 +809,7 @@ abstract class Bot extends Joueur {
         return cpt;
     }
 
+
     protected Carte exceptedMiniMaxAlphaBeta(Plis plis, int noCurrentPlayeur, int deepth) {
         return Rules.playable(plis, this).get(0);
     }
@@ -812,8 +830,8 @@ class BotDebutant extends Bot {
     public Paquet.Carte jouer(Plis plis) {
         final int DEEPTH = 2;   // Profondeur dans l'arbre de recherche
 
-        System.out.println("\nJeu du bot Débutant: "+ main);
-        System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));
+        //System.out.println("\nJeu du bot Débutant: "+ main);
+        //System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));
 
         // L'IA donne une carte
         Carte carte = exceptedMiniMax(plis, noPlayer, DEEPTH);
@@ -840,10 +858,10 @@ class BotMoyen extends Bot {
 
     @Override
     public Paquet.Carte jouer(Plis plis) {
-        final int DEEPTH = 2;   // Profondeur dans l'arbre de recherche
+        final int DEEPTH = 4;   // Profondeur dans l'arbre de recherche
 
-        System.out.println("\nJeu du bot Débutant: "+ main);
-        System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));
+        //System.out.println("\nJeu du bot Débutant: "+ main);
+        //System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));
 
         // L'IA donne une carte
         Carte carte = exceptedMiniMaxAlphaBeta(plis, noPlayer, DEEPTH);
@@ -870,10 +888,10 @@ class BotExpert extends Bot {
 
     @Override
     public Paquet.Carte jouer(Plis plis) {
-        final int DEEPTH = 5;   // Profondeur dans l'arbre de recherche
+        final int DEEPTH = 6;   // Profondeur dans l'arbre de recherche
 
-        System.out.println("\nJeu du bot Débutant: "+ main);
-        System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));
+        //System.out.println("\nJeu du bot Débutant: "+ main);
+        //System.out.println("\n"+getNom() + " (Débutant) joue, il a le choix avec "+ Rules.playable(plis, this));
 
         // L'IA donne une carte
         Carte carte = exceptedMiniMaxAlphaBeta(plis, noPlayer, DEEPTH);

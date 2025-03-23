@@ -94,6 +94,7 @@ public class Game implements Runnable {
         }
     }
 
+
     private void huitPlis() {
         int nbTour = 7;    // Chaque joueur va jouer 8 fois pour chaque plis
 
@@ -261,8 +262,7 @@ public class Game implements Runnable {
 
     private void resetParty() {
         // 1. Reset toutes les mains
-        for (Joueur joueur : joueurs)
-            joueur.clearMain();
+        for (Joueur joueur : joueurs) joueur.clearMain();
 
         // 2. Previens les humains en vidant leur main
         majAllClients("SetMain:null");
