@@ -196,7 +196,7 @@ public class Game implements Runnable {
             // Dès qu'un joueur prend on quitte la boucle
             if (atout != null) {
                 // Previens tout le monde que l'atout est définie
-                majAllClients("AtoutIsSet:"+atout+";"+joueurs[i%joueurs.length].getNom());
+                majAllClients("AtoutIsSet:"+atout+";"+i%joueurs.length);
                 indexJoueurApris = i%joueurs.length;
                 return atout;
             }
@@ -257,6 +257,7 @@ public class Game implements Runnable {
         }
         // Init la main des proba des cartes
         Bot.endDistrib();
+        Bot.onAtoutSet(middleCard, indexJoueurApris);
     }
 
 
