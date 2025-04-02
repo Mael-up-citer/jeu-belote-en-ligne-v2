@@ -378,7 +378,7 @@ public class WindowsGameController extends Gui {
         }
 
         // 3. Marque qui à pris
-        joueurAPris.setText("Le joueur: "+noPlyAPris+ "à pris");
+        joueurAPris.setText("Le joueur: "+noPlyAPris+ " à pris");
 
         // 4. Set le label atout
         Image img = new Image("/images/Couleurs/" + colorAtout + suffix);

@@ -296,8 +296,7 @@ public class Game implements Runnable {
 
     // Envoie aux joueurs les scores des 2 equipes
     private void updateScore() {
-        equipes[0].calculerScore(false);
-        equipes[1].calculerScore(false);
+        UtilEquipe.calculerScore(equipes[0], equipes[1]);
 
         majAllClients("UpdateScore:"+equipes[0].getScore()+";"+equipes[1].getScore());
     }
@@ -401,5 +400,79 @@ public class Game implements Runnable {
         for (Joueur joueur : joueurs)
             if (joueur instanceof Humain) 
                 ((Humain) joueur).endConnection();
+    }
+
+
+
+    public static class UtilEquipe {
+        public static int litige = 0;
+
+
+
+        // Retourne true si un litige apparait
+        public static void calculerScore(Equipe equipe1, Equipe equipe2) {
+            int palier = 82;    // Nombre de points à dépasser pour scorer quand on prend
+            int sumEq1 = equipe1.getScore();
+            int sumEq2 = equipe2.getScore();
+            
+            // Si l'équipe 1 est capot
+            if (equipe1.getPlis().size() == 0) {
+                equipe2.setScore(equipe2.getScore()+250+equipe2.getBeloteReBelote());
+                return;
+            }
+
+            // Si l'équipe 2 est capot
+            if (equipe2.getPlis().size() == 0) {
+                equipe1.setScore(equipe1.getScore()+250+equipe1.getBeloteReBelote());
+                return;
+            }
+
+            // Somme des points marqué par l'équipe 1
+            for (int i = 0; i < equipe1.getPlis().size(); i++)
+                sumEq1 += equipe1.getPlis().get(i).getValue();
+
+            // Somme des points marqué par l'équipe 2
+            for (int i = 0; i < equipe2.getPlis().size(); i++)
+                sumEq2 += equipe2.getPlis().get(i).getValue();
+
+            // Gère le dix de der
+            if (equipe1.getDixDeDer()) sumEq1 += 10;
+            else if (equipe2.getDixDeDer()) sumEq2 += 10;
+
+            // Add 0 ou 20 si un joueur à dit belote et rebelotte
+            // TODO corrigé la RAZ de belote et re
+            if (equipe1.getBeloteReBelote() > 0 || equipe2.getBeloteReBelote() > 0)
+                palier += 10;
+
+            // Si litige
+            if (sumEq1 == palier) {
+                // L'équipe défense marque
+                if (!equipe1.getAPris()) equipe1.setScore(sumEq1); 
+                else equipe2.setScore(sumEq2); 
+                litige = 80;
+            }
+
+            // Si léquipe 1 est dedans
+            else if (sumEq1 < palier && equipe1.getAPris()) {
+                equipe2.setScore(equipe2.getScore()+160+equipe1.getBeloteReBelote()+equipe2.getBeloteReBelote());
+                return;
+            }
+
+            // Si léquipe 2 est dedans
+            else if (sumEq2 < palier && equipe2.getAPris()) {
+                equipe1.setScore(equipe1.getScore()+160+equipe2.getBeloteReBelote()+equipe1.getBeloteReBelote());
+                return;
+            }
+
+            equipe1.setScore(arrondiScore(sumEq1)+equipe1.getBeloteReBelote());
+            equipe2.setScore(arrondiScore(sumEq2)+equipe2.getBeloteReBelote());
+        }
+
+
+        // Arrondi le score pour la Belote
+        private static int arrondiScore(int somme) {
+            int unite = (somme % 10);
+            return (unite < 6) ? (somme - unite) : (somme + (10 - unite));
+        }
     }
 }

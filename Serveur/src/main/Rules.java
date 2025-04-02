@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 
 /**
@@ -128,10 +129,10 @@ public abstract class Rules {
      *
      * @param contexte      Le pli en cours.
      * @param cartesJouees  Les cartes déjà jouées, organisées par couleur.
-     * @param paquet        Le paquet complet des cartes du jeu.
+     * @param main        Le paquet complet des cartes du jeu.
      * @return La liste des cartes non jouées filtrées selon la règle du suivi.
      */
-    public static List<Carte> successeur(Plis contexte, int noCurrentPlayer) {
+    public static List<Carte> successeur(Plis contexte, HashMap<Paquet.Carte.Couleur, List<Paquet.Carte>> main, int noCurrentPlayer) {
         // Récupération de la map des cartes disponibles pour le joueur.
         Map<Couleur, Map<Carte, Float>> possibleCardForPlayer = Bot.cardsProbaPerPlayer.get(noCurrentPlayer);
 
@@ -142,6 +143,9 @@ public abstract class Rules {
                 .flatMap(innerMap -> innerMap.keySet().stream())
                 .collect(Collectors.toList());
         
+        // Suppression des cartes que le joueur possède
+        main.values().forEach(nonJouees::removeAll);
+
         // Si aucun coup n'a encore été joué dans le pli, renvoyer toutes les cartes disponibles.
         Carte carteDemandee = contexte.getPlis()[0];
         if (carteDemandee == null) return nonJouees;

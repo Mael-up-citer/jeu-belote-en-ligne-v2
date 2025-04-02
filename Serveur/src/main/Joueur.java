@@ -574,7 +574,7 @@ abstract class Bot extends Joueur {
         List<Carte> playable;
 
         // Sinon on regarde toutes les possibilitées
-        playable = Rules.successeur(plis, noCurrentPlayeur);
+        playable = Rules.successeur(plis, main, noCurrentPlayeur);
 
         float expectedValue = 0f;  // Calcule l'espérance
         float totalProba = 0f;  // Pour normaliser au cas où les probas ne font pas 1
@@ -610,7 +610,7 @@ abstract class Bot extends Joueur {
         // Si le pli est fini
         if (plis.getIndex() == 4) {
             modele = new Plis(); // Nouveau pli
-    
+
             if (plis.getEquipe().equals(equipe)) localSum += plis.getValue();
         }
         else modele = new Plis(plis);
@@ -626,22 +626,20 @@ abstract class Bot extends Joueur {
             float bestValeur = -1;
     
             for (Carte carte : playable) {
-                if (!cartesJouees.contains(carte)) {
-                    Plis tmp = new Plis(modele);
-                    tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
+                Plis tmp = new Plis(modele);
+                tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
     
-                    Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
-                    newCartesJouees.add(carte);
+                Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
+                newCartesJouees.add(carte);
     
-                    float brancheValue = minValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
-                    bestValeur = Math.max(bestValeur, brancheValue);
-                }
+                float brancheValue = minValue(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees);
+                bestValeur = Math.max(bestValeur, brancheValue);
             }
             return bestValeur;
         }
         // Sinon, on prend en compte les probabilités car c'est un joueur dont les cartes ne sont pas connues
         else {
-            playable = Rules.successeur(plis, noCurrentPlayeur);
+            playable = Rules.successeur(plis, main, noCurrentPlayeur);
     
             float expectedValue = 0f;
             float totalProba = 0f;
@@ -669,7 +667,7 @@ abstract class Bot extends Joueur {
 
 
     /**************************************************************************************************
-     * Implémentation de exceptedMiniMaxAlphaBeta - BetaAlpha (elagage sur max && min)
+     * Implémentation de exceptedMiniMaxAlphaBeta
      * ************************************************************************************************
      */
 
@@ -735,7 +733,7 @@ abstract class Bot extends Joueur {
         List<Carte> playable;
 
         // Sinon on regarde toutes les possibilitées
-        playable = Rules.successeur(plis, noCurrentPlayeur);
+        playable = Rules.successeur(plis, main, noCurrentPlayeur);
 
         float expectedValue = 0f;  // Calcule l'espérance
         float totalProba = 0f;  // Pour normaliser au cas où les probas ne font pas 1, à cause des arrondis notament
@@ -788,29 +786,27 @@ abstract class Bot extends Joueur {
         // Si c'est le tour du joueur, on joue normalement
         if (noCurrentPlayeur == noPlayer) {
             playable = Rules.playable(plis, this);
-            float bestValeur = -2;
+            float bestValeur = -1;
 
             for (Carte carte : playable) {
-                if (!cartesJouees.contains(carte)) {
-                    Plis tmp = new Plis(modele);
-                    tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
+                Plis tmp = new Plis(modele);
+                tmp.addCard(Game.joueurs[noCurrentPlayeur], carte);
 
-                    Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
-                    newCartesJouees.add(carte);
+                Set<Carte> newCartesJouees = new HashSet<>(cartesJouees);
+                newCartesJouees.add(carte);
 
-                    float brancheValue = minValueAlphaBeta(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees, alpha, beta);
-                    bestValeur = Math.max(bestValeur, brancheValue);
+                float brancheValue = minValueAlphaBeta(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees, alpha, beta);
+                bestValeur = Math.max(bestValeur, brancheValue);
 
-                    if (bestValeur >= beta) break;
+                if (bestValeur >= beta) break;
 
-                    alpha = Math.max(bestValeur, alpha);
-                }
+                alpha = Math.max(bestValeur, alpha);
             }
             return bestValeur;
         }
         // Sinon, on prend en compte les probabilités car c'est un joueur dont les cartes ne sont pas connues
         else {
-            playable = Rules.successeur(plis, noCurrentPlayeur);
+            playable = Rules.successeur(plis, main, noCurrentPlayeur);
     
             float expectedValue = 0f;
             float totalProba = 0f;
