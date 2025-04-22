@@ -71,6 +71,7 @@ public class Paquet {
         private final Couleur couleur;  // La couleur de la carte
         private final Type type;        // Le type (valeur) de la carte
 
+
         /**
          * Constructeur pour créer une carte avec une couleur et un type donnés.
          * 

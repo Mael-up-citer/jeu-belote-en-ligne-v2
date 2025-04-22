@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 
+
 public class GameManager {
     private final String NAMEPUBLISH = "GameManager:message_received";
 
@@ -16,6 +17,8 @@ public class GameManager {
     private final Map<String, Consumer<String>> COMMANDMAPSERVER = new HashMap<>();
     // Table de dispatching pour associer les commandes à leurs méthodes pour la com GameGUI->GameManager
     private final Map<String, Consumer<String>> COMMANDMAPClIENT = new HashMap<>();
+    private int beloteReBelote = 0; // 1 Si il a dit belote et 2 si il a dit les 0
+
 
 
     public GameManager() {
@@ -31,6 +34,7 @@ public class GameManager {
                     handler.accept(serveurResponse[1]);  // Appel de la méthode associée à la commande
             }
         });
+
 
         // S'abonne à l'événement "Gui_response" pour recevoir la réponse de la GUI
         EventManager.getInstance().subscribe("GameGui:Gui_response", (eventType, data) -> {
@@ -49,6 +53,7 @@ public class GameManager {
         initializeCOMMANDMAPClient();
     }
 
+
     /**
      * Méthode d'initialisation de la table de dispatching. 
      * Elle associe chaque commande à une méthode de traitement correspondante.
@@ -58,6 +63,7 @@ public class GameManager {
         COMMANDMAPSERVER.put("GameStart", this::onGameStart);
         COMMANDMAPSERVER.put("SetMain", this::onReceiveHand);
         COMMANDMAPSERVER.put("SetMiddleCard", this::SetMiddleCard);
+        COMMANDMAPSERVER.put("HasBeloteAndRe", unused -> hasBeloteAndRe());
         COMMANDMAPSERVER.put("GetAtout1", unused -> askAtout1());
         COMMANDMAPSERVER.put("GetAtout2", unused -> askAtout2());
         COMMANDMAPSERVER.put("AtoutIsSet", this::atoutIsSet);
@@ -68,6 +74,7 @@ public class GameManager {
         COMMANDMAPSERVER.put("End8Plis", unused -> endPlis());
     }
 
+
     /**
      * Méthode d'initialisation de la table de dispatching. 
      * Elle associe chaque commande à une méthode de traitement correspondante.
@@ -77,8 +84,9 @@ public class GameManager {
         COMMANDMAPClIENT.put("AtoutChoisi", this::setAtout);
         COMMANDMAPClIENT.put("CardPlay", this::onCardPlay);
         COMMANDMAPClIENT.put("RESUME", unused -> resume());
-
+        COMMANDMAPClIENT.put("BeloteHandler",  unsed -> listenerBelote());
     }
+
 
 
     /* #################################
@@ -86,11 +94,13 @@ public class GameManager {
      * ###############################
      */
 
+
     // Publie un event pour prévenir la GUI que la partie commence
     private void onGameStart(String noPlayer) {
         System.out.println("je vais dire a la Gui que la game start");
         EventManager.getInstance().publish(NAMEPUBLISH, "GameStart:"+noPlayer);
     }
+
 
     // Quand le serveur partage la main du joueur si elle est vide on reset la main
     // Cette méthode est dite cumulative càd la main ce voit ajouter les cartes sans supprimer ce qu'il y avait avant
@@ -103,6 +113,7 @@ public class GameManager {
             // Envoie à la GUI les cartes à afficher sous forme de leur nom (type + "De" + couleur)
             EventManager.getInstance().publish(NAMEPUBLISH, "PlayerHand:"+formatForGui(message));
     }
+
 
     // Parse la String format: {CARREAU=[], TREFLE=[VALLETDeTREFLE, DAMMEDeTREFLE, ROIDeTREFLE], PIQUE=[ROIDePIQUE, ASDePIQUE], COEUR=[]}
     // Vers une string TypeDeCouleur
@@ -136,6 +147,13 @@ public class GameManager {
     private void SetMiddleCard(String carte) {
         EventManager.getInstance().publish(NAMEPUBLISH, "SetMiddleCard:"+carte);
     }
+
+
+    // Dit à la GUI de retourner la carte du milieu
+    private void hasBeloteAndRe() {
+        EventManager.getInstance().publish(NAMEPUBLISH, "HasBeloteAndRe:$");
+    }
+
 
     // Transmet à la GUI qu'on attend un atout
     private void askAtout1() {
@@ -177,8 +195,13 @@ public class GameManager {
         EventManager.getInstance().publish(NAMEPUBLISH, "UpdateScore:"+scores);
     }
 
+
     private void endPlis() {
         EventManager.getInstance().publish(NAMEPUBLISH, "End8Plis:$");
+
+        ServerConnection.getInstance().sendToServer(""+beloteReBelote);
+
+        beloteReBelote = 0; // RAZ
     }
 
 
@@ -202,6 +225,12 @@ public class GameManager {
     private void resume() {
         ServerConnection.getInstance().sendToServer("RESUME");
     }
+
+    private void listenerBelote() {
+        System.out.println("BELOOOOOTEEEEE "+beloteReBelote);
+        beloteReBelote++;
+    }
+
 
 
     /* #################################

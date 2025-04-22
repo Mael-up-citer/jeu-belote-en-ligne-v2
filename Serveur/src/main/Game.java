@@ -31,6 +31,7 @@ public class Game implements Runnable {
     public static HashMap<Couleur, List<Paquet.Carte>> cartePlay = new HashMap<>();
 
 
+
     /**
      * Constructeur de la classe Game.
      * 
@@ -138,6 +139,7 @@ public class Game implements Runnable {
         // 2. Jouer
         while (nbTour >= 0) {
             majAllClients("SetFirstPlayer:"+premierJoueur);
+            // Boucle ou chaque itération représente le tour d'un joueur
             for (int i = premierJoueur; i < premierJoueur+NB_PLAYERS; i++) {
                 Plis previous = new Plis(plis[plis.length - nbTour - 1]);
                 Paquet.Carte carteJouee = joueurs[i%NB_PLAYERS].jouer(plis[plis.length - nbTour - 1]);
@@ -258,6 +260,9 @@ public class Game implements Runnable {
         // Init la main des proba des cartes
         Bot.endDistrib();
         Bot.onAtoutSet(middleCard, indexJoueurApris);
+
+        // Cherche si un jouer à belote et rebelote et le previens
+        UtilEquipe.HasBeloteAndRe();
     }
 
 
@@ -278,7 +283,17 @@ public class Game implements Runnable {
         // 5. Envoie un message aux UI pour leur dire que les 8 plis sont fini
         majAllClients("End8Plis:$");
 
-    
+        // Attend les réponses des joueurs humains pour la fin de partie
+        for (int i = 0; i < joueurs.length; i++) {
+            if (joueurs[i] instanceof Humain humain) {
+                String str = humain.attendreMessageAvecTimeout(1000);
+                System.out.println("endData = "+str);
+                // Si le joueur a belote et re
+                if (str != null && str.contains("2"))
+                    joueurs[i].hasBeloteAndRe = false;
+            }
+        }
+
         Bot.cardsProbaPerPlayer.clear();
         Joueur.colorAtout = null;
     }
@@ -291,12 +306,15 @@ public class Game implements Runnable {
      */
     private boolean partieTerminee() {
         return Arrays.stream(equipes)
-                .anyMatch(equipe -> equipe.getScore() >= 1000);
+                .anyMatch(equipe -> equipe.getScore() > 1000);
     }
+
 
     // Envoie aux joueurs les scores des 2 equipes
     private void updateScore() {
+        plis[plis.length-1].getEquipe().setDixDeDer(true);
         UtilEquipe.calculerScore(equipes[0], equipes[1]);
+        plis[plis.length-1].getEquipe().setDixDeDer(false);
 
         majAllClients("UpdateScore:"+equipes[0].getScore()+";"+equipes[1].getScore());
     }
@@ -357,6 +375,7 @@ public class Game implements Runnable {
         }
     }    
 
+
     /**
      * Attend que tous les joueurs (humains et IA) aient terminé leurs animations avant de continuer.
      * 
@@ -393,6 +412,7 @@ public class Game implements Runnable {
         }
     }
 
+
     /**
      * Ferme les connexions des joueurs humains.
      */
@@ -408,22 +428,62 @@ public class Game implements Runnable {
         public static int litige = 0;
 
 
+        // Regarde si un jouer à belote et rebelote, si oui
+        // Si c'est un humain previens sa GUI
+        // Si c'est un bot on ajoute diretement au comptage des pts
+        // Si le joueur qui a belote and re joue le dis on previent les client
+        public static void HasBeloteAndRe() {
+            boolean hasDamme = false;
+            boolean hasRoi = false;
+            int i;  // No playeur ayant belote et rebelote
+    
+            // Pour chaque joueur
+            for (i = 0; i < joueurs.length-1 && !hasDamme && !hasRoi; i++) {
+                int dammeIndx = joueurs[i].main.get(Bot.colorAtout).indexOf(new Paquet.Carte (Bot.colorAtout, Type.DAME));
+                if (dammeIndx != -1) {
+                    hasDamme = true;
+                    if (joueurs[i].main.get(Bot.colorAtout).get(dammeIndx+1).getType().equals(Type.ROI)) {
+                        hasRoi = true;
+                        break;
+                    }
+                }
+                else {
+                    int roiIndx = joueurs[i].main.get(Bot.colorAtout).indexOf(new Paquet.Carte (Bot.colorAtout, Type.ROI));
+                    if (roiIndx != -1) {
+                        hasRoi = true;
+                        break;
+                    }
+                }
+            }
+            // Ajoute au joueur qui a belote et rebelote
+            if (hasDamme && hasRoi) joueurs[i].setHasBeloteAndRe(true);
 
-        // Retourne true si un litige apparait
+            if (joueurs[i] instanceof Humain) ((Humain) joueurs[i]).notifier("HasBeloteAndRe:$");
+        }
+
+
         public static void calculerScore(Equipe equipe1, Equipe equipe2) {
             int palier = 82;    // Nombre de points à dépasser pour scorer quand on prend
             int sumEq1 = equipe1.getScore();
             int sumEq2 = equipe2.getScore();
-            
+            int beloteBonusE1 = equipe1.getBeloteReBelote() ? 20 : 0;
+            int beloteBonusE2 = equipe2.getBeloteReBelote() ? 20 : 0;
+
+            // Belote et re sont toujours marqué
+            equipe1.setScore(equipe1.getScore()+beloteBonusE1);
+            equipe2.setScore(equipe1.getScore()+beloteBonusE2);
+
+            if (equipe1.getBeloteReBelote() || equipe2.getBeloteReBelote()) palier = 92;
+
             // Si l'équipe 1 est capot
             if (equipe1.getPlis().size() == 0) {
-                equipe2.setScore(equipe2.getScore()+250+equipe2.getBeloteReBelote());
+                equipe2.setScore(equipe2.getScore()+250);
                 return;
             }
 
             // Si l'équipe 2 est capot
             if (equipe2.getPlis().size() == 0) {
-                equipe1.setScore(equipe1.getScore()+250+equipe1.getBeloteReBelote());
+                equipe1.setScore(equipe1.getScore()+250);
                 return;
             }
 
@@ -439,11 +499,6 @@ public class Game implements Runnable {
             if (equipe1.getDixDeDer()) sumEq1 += 10;
             else if (equipe2.getDixDeDer()) sumEq2 += 10;
 
-            // Add 0 ou 20 si un joueur à dit belote et rebelotte
-            // TODO corrigé la RAZ de belote et re
-            if (equipe1.getBeloteReBelote() > 0 || equipe2.getBeloteReBelote() > 0)
-                palier += 10;
-
             // Si litige
             if (sumEq1 == palier) {
                 // L'équipe défense marque
@@ -454,18 +509,18 @@ public class Game implements Runnable {
 
             // Si léquipe 1 est dedans
             else if (sumEq1 < palier && equipe1.getAPris()) {
-                equipe2.setScore(equipe2.getScore()+160+equipe1.getBeloteReBelote()+equipe2.getBeloteReBelote());
+                equipe2.setScore(equipe2.getScore()+160);
                 return;
             }
 
             // Si léquipe 2 est dedans
             else if (sumEq2 < palier && equipe2.getAPris()) {
-                equipe1.setScore(equipe1.getScore()+160+equipe2.getBeloteReBelote()+equipe1.getBeloteReBelote());
+                equipe1.setScore(equipe1.getScore()+160);
                 return;
             }
 
-            equipe1.setScore(arrondiScore(sumEq1)+equipe1.getBeloteReBelote());
-            equipe2.setScore(arrondiScore(sumEq2)+equipe2.getBeloteReBelote());
+            equipe1.setScore(arrondiScore(sumEq1));
+            equipe2.setScore(arrondiScore(sumEq2));
         }
 
 

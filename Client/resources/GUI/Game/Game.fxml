@@ -114,9 +114,9 @@
          </children>
       </FlowPane>
       <Label fx:id="moi" layoutX="255.0" layoutY="599.0" text="Moi" />
-      <Label fx:id="labelJoueur2" layoutX="855.0" layoutY="78.0" text="Joueur 2" />
-      <Label fx:id="labelJoueur3" layoutX="1133.0" layoutY="618.0" text="Joueur 3" />
-      <Label fx:id="labelJoueur4" layoutX="128.0" layoutY="167.0" text="Joueur 4" />
+      <Label fx:id="labelJoueurTop" layoutX="855.0" layoutY="78.0" text="Joueur" />
+      <Label fx:id="labelJoueurRight" layoutX="1133.0" layoutY="618.0" text="Joueur" />
+      <Label fx:id="labelJoueurLeft" layoutX="128.0" layoutY="167.0" text="Joueur" />
       <Label fx:id="labelAtoutEnCour" layoutX="17.0" layoutY="83.0" text="Atout en cour :   " />
       <Pane fx:id="dialogPane" layoutX="528.0" layoutY="75.0" prefHeight="200.0" prefWidth="200.0">
          <children>

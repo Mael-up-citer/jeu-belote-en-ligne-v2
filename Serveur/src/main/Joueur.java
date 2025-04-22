@@ -10,9 +10,14 @@ import java.net.Socket;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import java.io.IOException;
+
 
 
 /**
@@ -25,6 +30,9 @@ public abstract class Joueur {
     protected String nom; // Le nom du joueur
     protected HashMap<Paquet.Carte.Couleur, List<Paquet.Carte>> main; // La main du joueur, organisée par couleur
     protected int noPlayer; // Nuémro du jour
+    protected boolean hasBeloteAndRe = false;
+
+
 
     /**
      * Constructeur par défaut de la classe Joueur.
@@ -33,6 +41,7 @@ public abstract class Joueur {
         this.nom = "Joueur inconnu";
         initMain();
     }
+
 
     /**
      * Constructeur de la classe Joueur avec un nom.
@@ -44,6 +53,7 @@ public abstract class Joueur {
         initMain();
     }
 
+
     /**
      * Initialise la main du joueur avec les couleurs de cartes disponibles.
      */
@@ -53,10 +63,12 @@ public abstract class Joueur {
             main.put(couleur, new ArrayList<>());
     }
 
+
     // Vide les listes de cartes
     public void clearMain() {
         for (List<Carte> list : main.values()) list.clear();
     }
+
 
     /**
      * Retourne le nom du joueur.
@@ -67,6 +79,7 @@ public abstract class Joueur {
         return nom;
     }
 
+
     /**
      * Retourne l'équipe du joueur.
      *
@@ -76,6 +89,7 @@ public abstract class Joueur {
         return equipe;
     }
 
+
     /**
      * Définit l'équipe du joueur.
      *
@@ -84,6 +98,7 @@ public abstract class Joueur {
     public void setEquipe(Equipe equipe) {
         this.equipe = equipe;
     }
+
 
     /**
      * Ajoute une carte à la main du joueur.
@@ -98,6 +113,7 @@ public abstract class Joueur {
             main.get(key).add(carte);
     }
 
+
     /**
      * Trie les cartes de la main du joueur par ordre croissant de valeur.
      */
@@ -105,10 +121,12 @@ public abstract class Joueur {
         main.values().forEach(cartes -> Collections.sort(cartes));
     }
 
+
     /**
      * Méthode abstraite définissant l'action de jouer un tour.
      */
     public abstract Paquet.Carte jouer(Plis plis);
+
 
     // Supprime la carte c de la main du joueur
     protected void removeCarte(Carte c) throws IllegalArgumentException {
@@ -117,6 +135,7 @@ public abstract class Joueur {
 
         main.get(c.getCouleur()).remove(c);
     }
+
 
     /**
      * Méthode définissant l'action à réaliser pour choisir l'atout.
@@ -132,10 +151,27 @@ public abstract class Joueur {
         return noPlayer;
     }
 
+
+    public static Paquet.Carte.Couleur getColorAtout() {
+        return colorAtout;
+    }
+
+
+    public boolean getHasBeloteAndRe() {
+        return hasBeloteAndRe;
+    }
+
+
     public void setNoPlayer(int no) {
         noPlayer = no;
     }
+
+    public void setHasBeloteAndRe(boolean hasBeloteAndRe) {
+        this.hasBeloteAndRe = hasBeloteAndRe;
+    }
 }
+
+
 
 /**
  * Classe représentant un joueur humain.
@@ -144,6 +180,11 @@ class Humain extends Joueur {
     private Socket socket; // Socket pour la communication avec le client (non sérialisé)
     private PrintWriter out;
     private BufferedReader in;
+    // Boolean pour vérifier si le joueur à dit belote et rebelote
+    public boolean hasSayBelote = false;
+    public boolean hasSayReBelote = false;
+    private static final ExecutorService executor = Executors.newCachedThreadPool(); // Réutilisable
+
 
 
     /**
@@ -204,11 +245,16 @@ class Humain extends Joueur {
         // Previens le clients qu'on attend qu'il pose une carte
         notifier("Play:"+Rules.playable(plis, this));
 
-        // Récupère sa réponse sous forme: "TypeDeCouleur"
+        // Récupère sa réponse sous forme: "TypeDeCouleur;int" avec int = 1 si il dit belote ou re sinon = 0;
         String cartePlaye = waitForClient();
+        
+        if (cartePlaye == null || cartePlaye.isEmpty()) return null;
+
+        String[] str = cartePlaye.split(";");
+        String carteJouee = str[0];
 
        // Récupère la carte joué
-        Paquet.Carte carte = Paquet.Carte.parseCarte(cartePlaye);
+        Paquet.Carte carte = Paquet.Carte.parseCarte(carteJouee);
 
         System.out.println("carte joué: "+carte);
 
@@ -219,6 +265,33 @@ class Humain extends Joueur {
         plis.addCard(this, carte);
 
         return carte;
+    }
+
+
+    /**
+     * Attend un message pendant un délai donné (en millisecondes).
+     * Retourne null si timeout ou erreur.
+     */
+    public String attendreMessageAvecTimeout(long timeoutMillis) {
+        Future<String> future = executor.submit(() -> {
+            try {
+                return in.readLine();
+            } catch (IOException e) {
+                System.err.println("Erreur de lecture pour " + nom + " : " + e.getMessage());
+                return null;
+            }
+        });
+
+        try {
+            return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            System.out.println("Timeout : aucun message reçu de " + nom + " après " + timeoutMillis + " ms.");
+            future.cancel(true); // Interruption
+        } catch (Exception e) {
+            System.err.println("Erreur inattendue lors de la lecture de " + nom);
+            e.printStackTrace();
+        }
+        return null;
     }
 
 
@@ -245,7 +318,7 @@ class Humain extends Joueur {
             e.printStackTrace();
         }
         return null;  // Retourne null en cas d'erreur
-    }    
+    }
 
 
     /**
@@ -362,6 +435,8 @@ abstract class Bot extends Joueur {
         // Si la main est vide, on passe
         if (main == null || main.isEmpty()) return null;
 
+        if (true) return null;
+
         final int seuil = 85;     // Défini à partir de quelle score on peut prendre
         final int seuilHaut = 115; // Défini à partir de quelle score on peut prendre en fin de partie
         Couleur color = null;   // Défini la couleur de l'atout choisit ou null si on passe
@@ -374,14 +449,14 @@ abstract class Bot extends Joueur {
             }
 
             if (getEquipe().getScore() > 800 && atoutRate.get(colorAtout) > seuilHaut) color = colorAtout;
-            else if (atoutRate.get(colorAtout) > seuil) color = colorAtout;
+            else if (atoutRate.get(colorAtout) >= seuil) color = colorAtout;
         }
         else {
             Couleur verif = betterRate();
 
             if ((getEquipe().getScore() > 800 && atoutRate.get(verif) > seuilHaut)
                         ||
-            (atoutRate.get(verif) > seuil))
+            (atoutRate.get(verif) >= seuil))
                 color = verif;
         }
         atoutRate.clear();
@@ -754,8 +829,9 @@ abstract class Bot extends Joueur {
                 if (proba > 0) {
                     totalProba += proba;
                     expectedValue += proba * maxValueAlphaBeta(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees, alpha, beta);
-
-                    if (expectedValue <= alpha) break;
+                    
+                    // Calcul le cout réel
+                    if ((expectedValue*totalProba) <= alpha) break;
 
                     beta = Math.min(expectedValue, beta);
                 }
@@ -823,8 +899,9 @@ abstract class Bot extends Joueur {
                     if (proba > 0) {
                         totalProba += proba;
                         expectedValue += proba * minValueAlphaBeta(tmp, carte, (noCurrentPlayeur + 1) % Game.NB_PLAYERS, deepth + 1, maxDeepth, localSum, newCartesJouees, alpha, beta);
-
-                        if (expectedValue >= beta) break;
+                        
+                        // Calcul le cout réel la valeur pour
+                        if ((expectedValue * proba) >= beta) break;
 
                         alpha = Math.max(expectedValue, alpha);
                     }
@@ -850,7 +927,7 @@ abstract class Bot extends Joueur {
 
 
     // Test de terminaison anticipé
-    // la valeur du jeu + la nombre de pts accumulé, la valeur du jeu est null si on est dans le cas terminal
+    // la valeur du jeu + le nombre de pts accumulé, la valeur du jeu est null si on est dans le cas terminal
     private float utility(float globalSum, Set<Carte> cartesJouees) {
         // Copie complète de main avant les modifications
         HashMap<Couleur, List<Carte>> mainTmp = new HashMap<>(main.entrySet().stream()
@@ -879,6 +956,7 @@ abstract class Bot extends Joueur {
 
     private float getProbability(int player, Carte carte) {
         Map<Couleur, Map<Carte, Float>> probaParCouleur = cardsProbaPerPlayer.get(player);
+
         if (probaParCouleur != null) {
             Map<Carte, Float> probaCarte = probaParCouleur.getOrDefault(carte.getCouleur(), Collections.emptyMap());
             return probaCarte.getOrDefault(carte, 0f);
@@ -889,7 +967,7 @@ abstract class Bot extends Joueur {
 
 
     /**************************************************************************************************
-     * Méthode utilitaire pour les algo d'IA Partie 2 inférence et recalcule des probas
+     * Méthode utilitaire pour les algos d'IA Partie 2 inférence et recalcule des probas
      * ************************************************************************************************
      */
 
@@ -1037,6 +1115,7 @@ class BotDebutant extends Bot {
         super(nom);
     }
 
+
     @Override
     public Paquet.Carte jouer(Plis plis) {
         final int DEEPTH = 2;   // Profondeur dans l'arbre de recherche
@@ -1066,6 +1145,7 @@ class BotMoyen extends Bot {
     public BotMoyen(String nom) {
         super(nom);
     }
+
 
     @Override
     public Paquet.Carte jouer(Plis plis) {

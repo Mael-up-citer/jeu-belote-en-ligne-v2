@@ -7,14 +7,15 @@ import java.util.Arrays;
 import java.util.List;
 
 
+
 public class Equipe {
     private Joueur j1;
     private Joueur j2;
     private int score = 0;
     private boolean aPris = false;
-    private int beloteReBelote = 0; // Si un joueur de l'equipe a dit belote et reBelote
     private ArrayList<Plis> plis = new ArrayList<>();   // Liste des plis de l'equipe pour un tour
     private boolean dixDeDer = false;
+
 
 
     Equipe() {}
@@ -78,7 +79,7 @@ public class Equipe {
         Equipe equipe = (Equipe) obj;
         return score == equipe.score &&
             aPris == equipe.aPris &&
-            beloteReBelote == equipe.beloteReBelote &&
+            getBeloteReBelote() == equipe.getBeloteReBelote() &&
             ((j1 == null && equipe.j1 == null) || (j1 != null && j1.equals(equipe.j1))) &&
             ((j2 == null && equipe.j2 == null) || (j2 != null && j2.equals(equipe.j2))) &&
             plis.equals(equipe.plis);
@@ -92,8 +93,8 @@ public class Equipe {
         return plis;
     }
 
-    public int getBeloteReBelote() {
-        return beloteReBelote;
+    public boolean getBeloteReBelote() {
+        return (j1.hasBeloteAndRe || j2.hasBeloteAndRe);
     }
 
     public boolean getDixDeDer() {
@@ -102,5 +103,9 @@ public class Equipe {
 
     public boolean getAPris() {
         return aPris;
+    }
+
+    public void setDixDeDer(boolean dixDeDer) {
+        this.dixDeDer = dixDeDer;
     }
 }

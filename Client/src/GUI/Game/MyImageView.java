@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+
 public class MyImageView extends ImageView {
     private final String cardName;
     private static final List<MyImageView> activeCards = new ArrayList<>(); // Liste des cartes activées

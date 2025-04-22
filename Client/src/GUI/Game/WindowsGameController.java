@@ -35,6 +35,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.transform.Scale;
 import javafx.geometry.Point2D;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -65,11 +66,11 @@ public class WindowsGameController extends Gui {
     @FXML
     private Label moi;  // Label "moi"
     @FXML
-    private Label labelJoueur2;  // Label "Joueur 2"
+    private Label labelJoueurTop;  // Label "Joueur x"
     @FXML
-    private Label labelJoueur3;  // Label "Joueur 3"
+    private Label labelJoueurRight;  // Label "Joueur y"
     @FXML
-    private Label labelJoueur4;  // Label "Joueur 4"
+    private Label labelJoueurLeft;  // Label "Joueur z"
 
 
     @FXML
@@ -146,8 +147,9 @@ public class WindowsGameController extends Gui {
 
     private int noPlayer; // Numéro du joueur
     private int noFirstPlayer;  // Numéro du 1er joueur a jouer dans ce tour
-    private int beloteReBelote = 0; // Suivi de belote rebelote si == 2 le joueur à dit belote rebelote
-    private boolean playeurGotIt = false;   // T si le joueur peut faire belote rebelotte
+    private float pauseDuration = 50f;   // Temps de pause apèrs chaque carte jouée
+    private boolean hasBeloteAndRe = false;
+
 
 
     @FXML
@@ -185,12 +187,20 @@ public class WindowsGameController extends Gui {
         Trefle.setOnAction(e -> handleButtonClick(Trefle));
         Passer.setOnAction(e -> handleButtonClick(Passer));
 
+        // Définie le comportement du boutton belote et rebelote
+        BeloteButton.setOnAction(e -> {
+            EventManager.getInstance().publish(NAMEPUBLISH, "BeloteHandler:$");
+            BeloteButton.setText("ReBelote");
+            BeloteButton.setDisable(true);
+        });
+
         // Définir un message sur le nombre de joueurs
         idGameLabel.setText("id de la partie: " + idGame);
         nbPlayer.setText("en attente de joueurs");
 
         EventManager.getInstance().publish(NAMEPUBLISH, "RESUME:$");
     }
+
 
     /**
      * Applique l'effet d'assombrissement et désactive les interactions avec mainPane
@@ -200,12 +210,13 @@ public class WindowsGameController extends Gui {
         dimmingPane.setStyle("-fx-background-color: rgba(0, 0, 0, 0.5);");
         dimmingPane.prefWidthProperty().bind(mainPane.widthProperty());
         dimmingPane.prefHeightProperty().bind(mainPane.heightProperty());
-    
+
         mainPane.getChildren().add(dimmingPane);
-    
+
         mainPane.getChildren().remove(dialogPane);  // Retirer temporairement dialogPane
         mainPane.getChildren().add(dialogPane);     // Réajouter dialogPane au-dessus
     }    
+
 
     @FXML
     private void handleButtonClick(Button button) {
@@ -215,6 +226,7 @@ public class WindowsGameController extends Gui {
         // Désactive les buttons Après un clique
         handleAtoutButton(true);
     }
+
 
     /**
      * Retire l'effet d'assombrissement et réactive l'intéraction avec mainPane
@@ -227,6 +239,10 @@ public class WindowsGameController extends Gui {
             joueurDispatch.put((noPlayer+1)%4, leftCadre);
             joueurDispatch.put((noPlayer+2)%4, frontCadre);
             joueurDispatch.put((noPlayer+3)%4, rightCadre);
+
+            labelJoueurLeft.setText(labelJoueurLeft.getText()+(noPlayer+1)%4);
+            labelJoueurTop.setText(labelJoueurTop.getText()+(noPlayer+2)%4);
+            labelJoueurRight.setText(labelJoueurRight.getText()+(noPlayer+3)%4);
 
         } catch (Exception e) {
         }
@@ -256,6 +272,7 @@ public class WindowsGameController extends Gui {
         COMMANDMAP.put("GameStart", this::onGameStart);
         COMMANDMAP.put("PlayerHand", this::dispPlayerHand);
         COMMANDMAP.put("SetMiddleCard",  this::dispMiddleCard);
+        COMMANDMAP.put("HasBeloteAndRe",  unused -> hasBeloteAndRe());
         COMMANDMAP.put("GetAtout1", unused -> askAtout1());
         COMMANDMAP.put("GetAtout2", unused -> askAtout2());
         COMMANDMAP.put("AtoutIsSet",  this::atoutIsSet);
@@ -303,6 +320,12 @@ public class WindowsGameController extends Gui {
             EventManager.getInstance().publish(NAMEPUBLISH, "RESUME:$");
         });
         pause.play();
+    }
+
+    // Affiche la carte du milieu
+    private void hasBeloteAndRe() {
+        System.out.println("Jai belote et re ok ");
+        hasBeloteAndRe = true;
     }
 
 
@@ -414,7 +437,10 @@ public class WindowsGameController extends Gui {
 
         Mycadre.getChildren().clear();
         deck.clear();
+
+        BeloteButton.setText("Belote");
     }
+
 
     private void play(String card) {
         // 1. Rendre cliquable les cartes jouables
@@ -443,10 +469,24 @@ public class WindowsGameController extends Gui {
         // Récupérer le FlowPane correspondant au joueur actuel
         FlowPane mainJoueur = joueurDispatch.get(noFirstPlayer);
 
-        // Si le joueur qui joue est différent de moi
-        if (noFirstPlayer != noPlayer)
-            // Supprime une image view de la main du joueur ennemie
-            mainJoueur.getChildren().remove(0);
+        // Si le joueur qui joue est différent de moi, supprime une image view de la main du joueur ennemie
+        if (noFirstPlayer != noPlayer) mainJoueur.getChildren().remove(0);
+        // Si c'est le joueur humain qui joue, on regarde si c'est une carte relative à la belote rebelote
+        else if (hasBeloteAndRe) {
+            ImageView imageView = (ImageView) labelAtoutEnCour.getGraphic();
+            Image image = imageView.getImage();
+            String url = image.getUrl();
+
+            if (url != null) {
+                String nomFichier = new File(url).getName(); // par ex. "Pique.png"
+                String nomSansExtension = nomFichier.substring(0, nomFichier.lastIndexOf('.')); // "Pique"
+
+                if (carteJouer.contains(nomSansExtension) && (carteJouer.contains("ROI") || carteJouer.contains("DAME"))) {
+                    BeloteButton.setDisable(false);
+                    pauseDuration = 750;
+                }
+            }
+        }
 
         // Création d'une ImageView temporaire pour l'animation
         ImageView carteAnimee = new ImageView(new Image(getClass().getResource(prefix + carteJouer + suffix).toExternalForm()));
@@ -492,23 +532,27 @@ public class WindowsGameController extends Gui {
                 pause.setOnFinished(e -> {
                     clearCardDump();
                     EventManager.getInstance().publish(NAMEPUBLISH, "RESUME:$");
+                    BeloteButton.setDisable(true);
                 });
                 pause.play();
             }
             else {
                 // Pour les autres cartes, une courte pause de 50ms avant de publier RESUME
-                PauseTransition courtePause = new PauseTransition(Duration.millis(50));
+                PauseTransition courtePause = new PauseTransition(Duration.millis(pauseDuration));
                 courtePause.setOnFinished(e -> {
                     EventManager.getInstance().publish(NAMEPUBLISH, "RESUME:$");
+                    BeloteButton.setDisable(true);
                 });
                 courtePause.play();
             }
+            pauseDuration = 50f;    // RAZ pause duration
         });
 
         // Met à jour le numéro du prochain joueur
         noFirstPlayer = (noFirstPlayer + 1) % 4;
         transition.play();
     }
+
 
     // Nettoie le dépôt de carte
     private void clearCardDump() {
@@ -518,6 +562,7 @@ public class WindowsGameController extends Gui {
         indexCardDump = 0;
     }
 
+
     // Définine qui sera le 1er joueur a jouer
     private void setFirstPlayer(String noFirstply) {
         try {
@@ -525,6 +570,7 @@ public class WindowsGameController extends Gui {
         } catch (Exception e) {
         }
     }
+
 
     // Met à jour les scores
     // @param sous forme scoreEq1 : scoreEq2
@@ -542,11 +588,14 @@ public class WindowsGameController extends Gui {
         }
     }
 
+
     // RAZ le labelle atout et de qui a pris
     private void endPlis() {
         joueurAPris.setText("");
         labelAtoutEnCour.setGraphic(null);
     }
+
+
 
     public static void setIdGame(String idG) {
         idGame = idG;
