@@ -435,8 +435,6 @@ abstract class Bot extends Joueur {
         // Si la main est vide, on passe
         if (main == null || main.isEmpty()) return null;
 
-        if (true) return null;
-
         final int seuil = 85;     // Défini à partir de quelle score on peut prendre
         final int seuilHaut = 115; // Défini à partir de quelle score on peut prendre en fin de partie
         Couleur color = null;   // Défini la couleur de l'atout choisit ou null si on passe
