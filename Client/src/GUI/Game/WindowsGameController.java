@@ -198,6 +198,7 @@ public class WindowsGameController extends Gui {
         idGameLabel.setText("id de la partie: " + idGame);
         nbPlayer.setText("en attente de joueurs");
 
+        // Préviens que l'UI est chargé
         EventManager.getInstance().publish(NAMEPUBLISH, "RESUME:$");
     }
 
@@ -322,6 +323,7 @@ public class WindowsGameController extends Gui {
         pause.play();
     }
 
+
     // Affiche la carte du milieu
     private void hasBeloteAndRe() {
         System.out.println("Jai belote et re ok ");
@@ -357,6 +359,7 @@ public class WindowsGameController extends Gui {
         Trefle.setDisable(state);
         Passer.setDisable(state);
     }
+
 
     private void handleOneAtoutButton(String name, Boolean state) {
         // Agit sur le boutton name

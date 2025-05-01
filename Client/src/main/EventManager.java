@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+
+
 /**
  * Gestionnaire central des événements de l'application.
  * Permet de souscrire, désinscrire et publier des événements.
@@ -21,9 +23,12 @@ public class EventManager {
     // Instance unique du gestionnaire
     private static EventManager instance;
 
+
+
     // Constructeur privé pour empêcher l'instanciation externe
     private EventManager() {
     }
+
 
     /**
      * Retourne l'instance unique du gestionnaire d'événements.
@@ -38,6 +43,7 @@ public class EventManager {
         return instance;
     }
 
+
     /**
      * Interface fonctionnelle pour gérer les événements.
      */
@@ -45,6 +51,7 @@ public class EventManager {
     public interface EventListener {
         void onEvent(String eventType, Object data);
     }
+
 
     /**
      * Souscrit un écouteur à un type d'événement.
@@ -56,6 +63,7 @@ public class EventManager {
         listenersMap.computeIfAbsent(eventType, k -> new HashSet<>()).add(listener);
     }
 
+
     /**
      * Désinscrit un écouteur d'un type d'événement.
      *
@@ -65,9 +73,9 @@ public class EventManager {
     public void unsubscribe(String eventType, EventListener listener) {
         Set<EventListener> listeners = listenersMap.get(eventType);
 
-        if (listeners != null)
-            listeners.remove(listener);
+        if (listeners != null) listeners.remove(listener);
     }
+
 
     /**
      * Publie un événement à tous les abonnés d'un type donné.

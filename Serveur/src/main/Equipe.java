@@ -18,32 +18,12 @@ public class Equipe {
 
 
 
-    Equipe() {}
+    public Equipe() {}
 
 
-    Equipe(Joueur j1, Joueur j2) {
+    public Equipe(Joueur j1, Joueur j2) {
         this.j1 = j1;
         this.j2 = j2;
-    }
-
-
-    public Joueur getJ1() {
-        return j1;
-    }
-
-
-    public Joueur getJ2() {
-        return j2;
-    }
-
-
-    public int getScore() {
-        return score;
-    }
-
-
-    public void setScore(int score) {
-        this.score = score;
     }
 
 
@@ -85,6 +65,22 @@ public class Equipe {
             plis.equals(equipe.plis);
     }
 
+
+    public Joueur getJ1() {
+        return j1;
+    }
+
+
+    public Joueur getJ2() {
+        return j2;
+    }
+
+
+    public int getScore() {
+        return score;
+    }
+
+
     public List<Joueur> getJoueurs() {
         return Arrays.asList(j1, j2);
     }
@@ -94,7 +90,8 @@ public class Equipe {
     }
 
     public boolean getBeloteReBelote() {
-        return (j1.hasBeloteAndRe || j2.hasBeloteAndRe);
+        return ((j1.hasSayBeloteAndRe && j1.hasBeloteAndRe) ||
+            (j2.hasSayBeloteAndRe && j2.hasBeloteAndRe));
     }
 
     public boolean getDixDeDer() {
@@ -107,5 +104,15 @@ public class Equipe {
 
     public void setDixDeDer(boolean dixDeDer) {
         this.dixDeDer = dixDeDer;
+    }
+
+
+    public void setScore(int score) {
+        this.score = score;
+    }
+
+
+    public void setAPris(boolean aPris) {
+        this.aPris = aPris;
     }
 }

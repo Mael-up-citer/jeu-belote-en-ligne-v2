@@ -29,6 +29,7 @@ import javafx.scene.control.ProgressIndicator;
 import java.util.ArrayList;
 
 
+
 public class CreateGameController extends Gui {
     private static final int NBPLAYER = 4; // Nombre total de joueurs
     private static final int MAX_TEAM_SIZE = 3; // Taille maximale par équipe 2 + 1label
@@ -59,6 +60,7 @@ public class CreateGameController extends Gui {
     private int numberOfHumans; // Nombre d'humains de la partie
     // Utilisation du singleton EventManager
     private static EventManager eventManager = EventManager.getInstance();
+
 
 
     @FXML

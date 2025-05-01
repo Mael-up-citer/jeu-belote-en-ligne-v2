@@ -3,6 +3,8 @@ package main;
 import java.io.*;
 import java.net.Socket;
 
+
+
 /**
  * Classe gérant la connexion client-serveur.
  * Cette classe est responsable d'établir, maintenir et gérer une connexion avec le serveur.
@@ -27,6 +29,7 @@ public class ServerConnection {
     private EventManager eventManager;
 
 
+
     /**
      * Constructeur privé pour le pattern Singleton.
      *
@@ -35,6 +38,7 @@ public class ServerConnection {
     private ServerConnection() {
         this.eventManager = EventManager.getInstance();
     }
+
 
     /**
      * Récupère l'instance unique de ServerConnection.
@@ -49,6 +53,7 @@ public class ServerConnection {
 
         return instance;
     }
+
 
     /**
      * Établit une connexion avec le serveur.
@@ -86,6 +91,7 @@ public class ServerConnection {
         }
     }
 
+
     /**
      * Écoute en continu les messages provenant du serveur dans un thread séparé.
      * Chaque message reçu est publié sous l'événement "server:message_received".
@@ -99,13 +105,13 @@ public class ServerConnection {
                 System.out.println("Serverconnection: "+message);
                 eventManager.publish("server:message_received", message);
             }
-
         } catch (IOException e) {
             // Si le serveur est déconnecté ou iniaténiable
             eventManager.publish("server:outOfRange", e.getMessage());
             cleanupResources();
         }
     }
+
 
     /**
      * Envoie un message au serveur.
@@ -120,6 +126,7 @@ public class ServerConnection {
         else
             eventManager.publish("server:outOfRange", "connexion au serveur non établie, impossible d'envoyer le message");
     }
+
 
     /**
      * Déconnecte la connexion actuelle avec le serveur.
@@ -136,6 +143,7 @@ public class ServerConnection {
         }
     }
 
+
     /**
      * Libère les ressources utilisées par la connexion (flux et socket).
      * Met à jour l'état de la connexion et publie un événement "server:disconnected".
@@ -151,6 +159,7 @@ public class ServerConnection {
             eventManager.publish("server:disconnected", "Succès: déconnection effectué");
         }
     }
+
 
     /**
      * Indique si la connexion avec le serveur est active.

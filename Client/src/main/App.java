@@ -29,6 +29,7 @@ public class App extends Application {
         launch(args);
     }
 
+
     @Override
     public void start(Stage primaryStage) {
         Gui.setStage(primaryStage); // Initialise le Stage pour toutes les GUI
@@ -39,6 +40,7 @@ public class App extends Application {
         primaryStage.show(); // Afficher la fenêtre seulement si le chargement a réussi
         attemptConnection(); // Tente de se connecter au serveur
     }
+
 
     /**
      * Tente de se connecter au serveur avec des réessais en cas d'échec.
@@ -59,6 +61,7 @@ public class App extends Application {
         });
     }
 
+
     /**
      * Affiche une alerte si la connexion échoue après plusieurs tentatives.
      */
@@ -74,6 +77,7 @@ public class App extends Application {
         });
     }
 
+
     /**
      * Ferme proprement l'application.
      */
@@ -83,6 +87,7 @@ public class App extends Application {
         scheduler.shutdown(); // Arrête proprement le scheduler
         System.exit(0); // Ferme le programme
     }
+
 
     @Override
     public void stop() {

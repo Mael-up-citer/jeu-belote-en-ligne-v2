@@ -42,6 +42,7 @@ public class LobyGuiController extends Gui {
     private Button quitButton; // Le bouton "Quitter"
 
 
+
     /**
      * Méthode d'initialisation, appelée automatiquement lorsque le contrôleur est chargé.
      * Initialise l'état des composants graphiques.
@@ -57,6 +58,7 @@ public class LobyGuiController extends Gui {
         errorLabel.setVisible(false); // Caché au départ
     }
 
+
     /**
      * Méthode pour démarrer une nouvelle partie.
      */
@@ -65,6 +67,7 @@ public class LobyGuiController extends Gui {
         loadScene("/GUI/Loby/CreateGame.fxml");
     }
 
+
     /**
      * Méthode pour rejoindre une partie existante.
      */
@@ -72,6 +75,7 @@ public class LobyGuiController extends Gui {
     private void joinExistingGame() {
         loadScene("/GUI/Loby/joinGame.fxml");
     }
+
 
     /**
      * Méthode pour quitter l'application.
@@ -82,6 +86,7 @@ public class LobyGuiController extends Gui {
         ServerConnection.getInstance().disconnect();    // Ferme la connexion
         System.exit(0); // Fermer l'application
     }
+
 
     /**
      * Affiche un message d'erreur de connexion dans le label et désactive les boutons.
@@ -97,6 +102,7 @@ public class LobyGuiController extends Gui {
         createGameButton.setDisable(true);
         joinGameButton.setDisable(true);
     }
+
 
     /**
      * Réinitialise l'interface graphique après une connexion réussie.

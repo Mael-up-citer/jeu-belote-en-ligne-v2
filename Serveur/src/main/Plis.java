@@ -70,11 +70,11 @@ public class Plis {
                 }
             }
         }
-
         // Ajouter la carte au pli
         plis[index] = carte;
         index++;
     }   
+
 
     /**
      * Calcule la valeur totale du pli en fonction des points des cartes.
@@ -82,10 +82,12 @@ public class Plis {
      */
     public int getValue() {
         int sum = 0;
+
         for(int i = 0; i < plis.length; i++) sum += plis[i].getNbPoint();
 
         return sum;
     }
+
 
     /**
      * Réinitialise le pli pour une nouvelle manche.

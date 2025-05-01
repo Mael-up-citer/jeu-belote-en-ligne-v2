@@ -5,7 +5,7 @@ LIB_DIR="./lib"
 # Dossier de compilation
 BIN_DIR="./bin"
 # Chemin du fichier source principal
-JAVA_FILE="src/main/Server.java"
+JAVA_FILE="src/Network/Server.java"
 
 # Vérification que le fichier existe
 if [[ ! -f "$JAVA_FILE" ]]; then
@@ -29,7 +29,7 @@ if [[ $? -eq 0 ]]; then
   echo "Compilation réussie."
 
   # Récupérer le nom de la classe principale relative au package
-  MAIN_CLASS="src.main.Server"
+  MAIN_CLASS="src.Network.Server"
 
   # Exécution de la classe JavaFX avec les bibliothèques et les modules nécessaires
   echo "Exécution de l'application..."

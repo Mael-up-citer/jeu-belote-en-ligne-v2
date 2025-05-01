@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 
+
 /**
  * Classe représentant une partie de jeu.
  * Implémente Runnable pour permettre l'exécution en parallèle.
@@ -69,19 +70,20 @@ public class Game implements Runnable {
         for (int i = 0; i < joueurs.length; i++) joueurs[i].setNoPlayer(i);
     }
 
+
     /**
      * Méthode principale pour gérer la partie.
      * Gère les tours et détermine les conditions de victoire.
      */
     @Override
     public void run() {
-        // Attends le chargement de la dernière UI Client
-        attendreDernierJoueur();
-
         // Previens les humains que le jeu commence et leur envoie leur numero
-        for (int i = 0; i < joueurs.length; i++)
-            if (joueurs[i] instanceof Humain)
+        for (int i = 0; i < joueurs.length; i++) {
+            if (joueurs[i] instanceof Humain) {
+                System.out.println("previen le joueur "+ joueurs[i].nom);
                 ((Humain) joueurs[i]).notifier("GameStart:"+i);
+            }
+        }
 
         try {
             while (!partieTerminee()) {
@@ -93,6 +95,7 @@ public class Game implements Runnable {
             e.printStackTrace();
             endConnection();
         }
+
     }
 
 
@@ -160,16 +163,20 @@ public class Game implements Runnable {
             nbTour--;
         }
 
-        //3. Update les score
-        updateScore();
-
-        // 4.RAZ les variables de jeu
+        // 3.RAZ les variables de jeu
         // Reconstruit le paquet avec les plis
         paquet.addPlis(plis, equipes);
         resetParty();
 
+        //4. Update les score
+        updateScore();
+
         // Reset les plis
         for (int i = 0; i < plis.length; i++) plis[i].reset();
+
+        // 5. Vide les plis acquis par les 2 équipes
+        equipes[0].getPlis().clear();
+        equipes[1].getPlis().clear();
     }
 
     // Détermine qu'elle sera l'atout du ces 8 plis
@@ -200,6 +207,7 @@ public class Game implements Runnable {
                 // Previens tout le monde que l'atout est définie
                 majAllClients("AtoutIsSet:"+atout+";"+i%joueurs.length);
                 indexJoueurApris = i%joueurs.length;
+                joueurs[i%joueurs.length].getEquipe().setAPris(true);
                 return atout;
             }
         }
@@ -240,6 +248,12 @@ public class Game implements Runnable {
             if (joueur instanceof Humain) {
                 // Envoie au client sa main
                 ((Humain) joueur).notifier("SetMain:"+joueur.getMain().toString());
+            }
+        }
+
+        // Previens tout les humains en leur envoyant leur main
+        for (Joueur joueur : joueurs) {
+            if (joueur instanceof Humain) {
                 // Envoie au client la carte du milieu
                 ((Humain) joueur).notifier("SetMiddleCard:"+middleCard.toString());
             }
@@ -269,7 +283,7 @@ public class Game implements Runnable {
     private void resetParty() {
         // 1. Reset toutes les mains
         for (Joueur joueur : joueurs) joueur.clearMain();
-
+        
         // 2. Previens les humains en vidant leur main
         majAllClients("SetMain:null");
 
@@ -286,11 +300,11 @@ public class Game implements Runnable {
         // Attend les réponses des joueurs humains pour la fin de partie
         for (int i = 0; i < joueurs.length; i++) {
             if (joueurs[i] instanceof Humain humain) {
-                String str = humain.attendreMessageAvecTimeout(1000);
+                String str = humain.waitForClient();
                 System.out.println("endData = "+str);
                 // Si le joueur a belote et re
                 if (str != null && str.contains("2"))
-                    joueurs[i].hasBeloteAndRe = false;
+                    joueurs[i].hasSayBeloteAndRe = true;
             }
         }
 
@@ -316,6 +330,10 @@ public class Game implements Runnable {
         UtilEquipe.calculerScore(equipes[0], equipes[1]);
         plis[plis.length-1].getEquipe().setDixDeDer(false);
 
+        System.out.println("score eq 1 = "+equipes[0].getScore());
+        System.out.println("score eq 2 = "+equipes[1].getScore());
+
+
         majAllClients("UpdateScore:"+equipes[0].getScore()+";"+equipes[1].getScore());
     }
 
@@ -328,52 +346,6 @@ public class Game implements Runnable {
             if (joueur instanceof Humain)
                 ((Humain) joueur).notifier(message);
     }
-
-
-    /**
-     * Notifie tous les joueurs humains sauf un.
-     * 
-     * @param exclu Joueur à exclure.
-     */
-    private void majAllExceptOneClient(Joueur exclu, String message) {
-        for (Joueur joueur : joueurs)
-            if (joueur instanceof Humain && !joueur.equals(exclu))
-                ((Humain) joueur).notifier(message);
-    }
-
-
-    /**
-     * Attend que tous les joueurs (humains et IA) aient terminé leurs animations avant de continuer.
-     * 
-     * <p>Cette méthode utilise un {@link CountDownLatch} pour attendre la réponse des joueurs en parallèle,
-     * sans imposer d'ordre. Chaque joueur humain attend un message de confirmation ("RESUME") avant 
-     * de décrémenter le compteur.</p>
-     *
-     * <p>Les joueurs IA ne nécessitent pas d'attente, donc leur réponse est immédiatement comptabilisée.</p>
-     *
-     * <p>Le thread principal est bloqué avec {@code latch.await()} jusqu'à ce que tous les joueurs aient terminé.</p>
-     *
-     * @throws InterruptedException si le thread est interrompu pendant l'attente.
-     */
-    private void attendreDernierJoueur() {
-        CountDownLatch latch = new CountDownLatch(1); // On attend seulement un joueur
-
-        // Lancer un thread pour chaque joueur humain
-        for (Joueur joueur : joueurs) {
-            if (joueur instanceof Humain) {
-                new Thread(() -> {
-                    ((Humain) joueur).waitForClient(); // Attente spécifique pour le joueur humain
-                    latch.countDown(); // Décrémente le compteur quand le joueur a terminé
-                }).start();
-            }
-        }
-        try {
-            latch.await(); // Attendre qu'un joueur humain ait terminé
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.err.println("Erreur lors de l'attente du dernier joueur : " + e.getMessage());
-        }
-    }    
 
 
     /**
@@ -394,18 +366,34 @@ public class Game implements Runnable {
 
         for (Joueur joueur : joueurs) {
             if (joueur instanceof Humain) {
+                System.out.println("Début de l'attente pour l'humain : " + joueur.getNom());
+        
                 // Exécuter l'attente dans un thread séparé
                 new Thread(() -> {
-                    ((Humain) joueur).waitForClient();
-                    latch.countDown(); // Décrémente le compteur quand le joueur a fini
+                    try {
+                        // Attente de l'humain pour se préparer ou effectuer une action
+                        ((Humain) joueur).waitForClient();
+                        System.out.println("L'humain " + joueur.getNom() + " a terminé d'attendre.");
+        
+                    } catch (Exception e) {
+                        System.err.println("Erreur lors de l'attente pour l'humain " + joueur.getNom() + ": " + e.getMessage());
+                    } finally {
+                        latch.countDown(); // Décrémente le compteur quand le joueur a fini
+                        System.out.println("Le compteur latch a été décrémenté pour l'humain : " + joueur.getNom());
+                    }
                 }).start();
-            }
-            else
+            } else {
+                System.out.println("L'IA " + joueur.getNom() + " n'a pas besoin d'attendre.");
                 // Si c'est une IA, on réduit immédiatement le compteur
                 latch.countDown();
+                System.out.println("Le compteur latch a été décrémenté pour l'IA : " + joueur.getNom());
+            }
         }
+        
         try {
+            System.out.println("Attente que tous les joueurs aient répondu...");
             latch.await(); // Attendre que tous les joueurs aient répondu
+            System.out.println("Tous les joueurs ont répondu. On continue le jeu.");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("Erreur lors de l'attente des joueurs : " + e.getMessage());
@@ -435,15 +423,18 @@ public class Game implements Runnable {
         public static void HasBeloteAndRe() {
             boolean hasDamme = false;
             boolean hasRoi = false;
-            int i;  // No playeur ayant belote et rebelote
     
             // Pour chaque joueur
-            for (i = 0; i < joueurs.length-1 && !hasDamme && !hasRoi; i++) {
+            for (int i = 0; i < joueurs.length && !hasDamme && !hasRoi; i++) {
+                // Cherche l'index de la damme d'atout dans la main du joueur
                 int dammeIndx = joueurs[i].main.get(Bot.colorAtout).indexOf(new Paquet.Carte (Bot.colorAtout, Type.DAME));
+
                 if (dammeIndx != -1) {
                     hasDamme = true;
                     if (joueurs[i].main.get(Bot.colorAtout).get(dammeIndx+1).getType().equals(Type.ROI)) {
                         hasRoi = true;
+                        joueurs[i].setHasBeloteAndRe(true);
+                        if (joueurs[i] instanceof Humain) ((Humain) joueurs[i]).notifier("HasBeloteAndRe:$");
                         break;
                     }
                 }
@@ -455,79 +446,105 @@ public class Game implements Runnable {
                     }
                 }
             }
-            // Ajoute au joueur qui a belote et rebelote
-            if (hasDamme && hasRoi) joueurs[i].setHasBeloteAndRe(true);
-
-            if (joueurs[i] instanceof Humain) ((Humain) joueurs[i]).notifier("HasBeloteAndRe:$");
         }
 
 
         public static void calculerScore(Equipe equipe1, Equipe equipe2) {
-            int palier = 82;    // Nombre de points à dépasser pour scorer quand on prend
-            int sumEq1 = equipe1.getScore();
-            int sumEq2 = equipe2.getScore();
+            for (int i = 0; i < Couleur.values().length; i++) {
+                System.out.println("est-ce atout ? de " + Couleur.values()[i] + " "+Couleur.values()[i].getIsAtout());
+            }
+
+            System.out.println("calcul des scores...");
+
+            System.out.println("t1 a belote ? "+equipe1.getBeloteReBelote());
+            System.out.println("t2 a belote ? "+equipe2.getBeloteReBelote());
+
+            // 0) Attribution systématique du bonus Belote/Re-Belote
             int beloteBonusE1 = equipe1.getBeloteReBelote() ? 20 : 0;
             int beloteBonusE2 = equipe2.getBeloteReBelote() ? 20 : 0;
 
-            // Belote et re sont toujours marqué
-            equipe1.setScore(equipe1.getScore()+beloteBonusE1);
-            equipe2.setScore(equipe1.getScore()+beloteBonusE2);
+            equipe1.setScore(equipe1.getScore() + beloteBonusE1);
+            equipe2.setScore(equipe2.getScore() + beloteBonusE2);
 
-            if (equipe1.getBeloteReBelote() || equipe2.getBeloteReBelote()) palier = 92;
+            // 1) Calcul des points bruts de la donne
+            int pointsE1 = calculerPointsDonne(equipe1);
+            int pointsE2 = calculerPointsDonne(equipe2);
 
-            // Si l'équipe 1 est capot
-            if (equipe1.getPlis().size() == 0) {
-                equipe2.setScore(equipe2.getScore()+250);
+            // 2) Détermination du palier
+            int palier = (equipe1.getBeloteReBelote() || equipe2.getBeloteReBelote()) ? 92 : 82;
+
+            // 3) Gestion du litige précédent (reporté)
+            if (litige == 80) {
+                System.out.println("il y avait un litige");
+                Equipe gagnant = determineGagnant(equipe1, equipe2, pointsE1, pointsE2, palier);
+                gagnant.setScore(gagnant.getScore() + litige);
+                litige = 0;
+            }
+        
+            // 4) Cas capot
+            if (equipe1.getPlis().isEmpty()) {
+                System.out.println("T1 est capot");
+                equipe2.setScore(equipe2.getScore() + 250);
                 return;
             }
-
-            // Si l'équipe 2 est capot
-            if (equipe2.getPlis().size() == 0) {
-                equipe1.setScore(equipe1.getScore()+250);
+            if (equipe2.getPlis().isEmpty()) {
+                System.out.println("T2 est capot");
+                equipe1.setScore(equipe1.getScore() + 250);
                 return;
             }
-
-            // Somme des points marqué par l'équipe 1
-            for (int i = 0; i < equipe1.getPlis().size(); i++)
-                sumEq1 += equipe1.getPlis().get(i).getValue();
-
-            // Somme des points marqué par l'équipe 2
-            for (int i = 0; i < equipe2.getPlis().size(); i++)
-                sumEq2 += equipe2.getPlis().get(i).getValue();
-
-            // Gère le dix de der
-            if (equipe1.getDixDeDer()) sumEq1 += 10;
-            else if (equipe2.getDixDeDer()) sumEq2 += 10;
-
-            // Si litige
-            if (sumEq1 == palier) {
-                // L'équipe défense marque
-                if (!equipe1.getAPris()) equipe1.setScore(sumEq1); 
-                else equipe2.setScore(sumEq2); 
+        
+            // 5) Cas de litige courant
+            if (pointsE1 == palier) {
+                System.out.println("litige !");
                 litige = 80;
+                return;
             }
+        
+            // 6) Cas "dedans"
+            System.out.println("t1 pts = "+pointsE1);
+            System.out.println("t2 pts = "+pointsE2);
 
-            // Si léquipe 1 est dedans
-            else if (sumEq1 < palier && equipe1.getAPris()) {
-                equipe2.setScore(equipe2.getScore()+160);
+            System.out.println("t1 a pris = "+equipe1.getAPris());
+            System.out.println("t2 a pris = "+equipe2.getAPris());
+
+            if (pointsE1 < palier && equipe1.getAPris()) {
+                System.out.println("T1 dedans !");
+                equipe2.setScore(equipe2.getScore() + 160);
+                return;
+            }
+            if (pointsE2 < palier && equipe2.getAPris()) {
+                System.out.println("T2 dedans !");
+
+                equipe1.setScore(equipe1.getScore() + 160);
                 return;
             }
 
-            // Si léquipe 2 est dedans
-            else if (sumEq2 < palier && equipe2.getAPris()) {
-                equipe1.setScore(equipe1.getScore()+160);
-                return;
-            }
-
-            equipe1.setScore(arrondiScore(sumEq1));
-            equipe2.setScore(arrondiScore(sumEq2));
+            // 7) Cas normal : attribution arrondie
+            equipe1.setScore(equipe1.getScore() + arrondiScore(pointsE1));
+            equipe2.setScore(equipe2.getScore() + arrondiScore(pointsE2));
         }
 
 
-        // Arrondi le score pour la Belote
-        private static int arrondiScore(int somme) {
-            int unite = (somme % 10);
-            return (unite < 6) ? (somme - unite) : (somme + (10 - unite));
+        private static int calculerPointsDonne(Equipe equipe) {
+            int total = equipe.getPlis().stream().mapToInt(Plis::getValue).sum();
+
+            if (equipe.getDixDeDer()) total += 10;
+            return total;
         }
+        
+        private static Equipe determineGagnant(Equipe e1, Equipe e2, int p1, int p2, int palier) {
+            // L'attaquant gagne si il remplit son contrat, sinon la défense gagne
+            Equipe attaquant = e1.getAPris() ? e1 : e2;
+            Equipe defense = (attaquant == e1) ? e2 : e1;
+            int ptsAtt = (attaquant == e1) ? p1 : p2;
+            return (ptsAtt >= palier) ? attaquant : defense;
+        }
+    }        
+
+
+    // Arrondi le score pour la Belote
+    private static int arrondiScore(int somme) {
+        int unite = (somme % 10);
+        return (unite < 6) ? (somme - unite) : (somme + (10 - unite));
     }
 }
