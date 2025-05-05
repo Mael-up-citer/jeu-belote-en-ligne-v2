@@ -16,10 +16,12 @@ public class BotFactory {
     private static final Map<String, Function<String, Joueur>> BOT_OF = new HashMap<>();
 
     static {
+        BOT_OF.put("random", BotDebutant::new);
         BOT_OF.put("débutant", BotDebutant::new);
         BOT_OF.put("intermédiaire", BotMoyen::new);
         BOT_OF.put("expert", BotExpert::new);
     }
+
 
     /**
      * Crée un bot avec un nom personnalisé et un niveau spécifié.

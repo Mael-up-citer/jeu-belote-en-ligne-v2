@@ -5,6 +5,9 @@ import src.main.Paquet.Carte.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -91,11 +94,24 @@ public class Game implements Runnable {
                 indexDonne = (indexDonne+1) % joueurs.length; // Après chaque 8 plis on avance dans la donne
                 premierJoueur = (indexDonne+1) % joueurs.length;
             }
+            
+            // Garde une trace des résultats
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("resultats1.1.txt", true))) {
+                int score0 = equipes[0].getScore();
+                int score1 = equipes[1].getScore();
+                int gagnante = score0 > score1 ? 0 : 1;
+
+                writer.write("Équipe gagnante : Équipe " + gagnante);
+                writer.newLine();
+                writer.write("Scores - Équipe 0 : " + score0 + ", Équipe 1 : " + score1);
+                writer.newLine();
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             endConnection();
         }
-
     }
 
 
@@ -431,11 +447,13 @@ public class Game implements Runnable {
 
                 if (dammeIndx != -1) {
                     hasDamme = true;
-                    if (joueurs[i].main.get(Bot.colorAtout).get(dammeIndx+1).getType().equals(Type.ROI)) {
-                        hasRoi = true;
-                        joueurs[i].setHasBeloteAndRe(true);
-                        if (joueurs[i] instanceof Humain) ((Humain) joueurs[i]).notifier("HasBeloteAndRe:$");
-                        break;
+                    if (joueurs[i].main.get(Bot.colorAtout).size() > dammeIndx + 1) {
+                        if (joueurs[i].main.get(Bot.colorAtout).get(dammeIndx+1).getType().equals(Type.ROI)) {
+                            hasRoi = true;
+                            joueurs[i].setHasBeloteAndRe(true);
+                            if (joueurs[i] instanceof Humain) ((Humain) joueurs[i]).notifier("HasBeloteAndRe:$");
+                            break;
+                        }
                     }
                 }
                 else {
@@ -450,12 +468,6 @@ public class Game implements Runnable {
 
 
         public static void calculerScore(Equipe equipe1, Equipe equipe2) {
-            for (int i = 0; i < Couleur.values().length; i++) {
-                System.out.println("est-ce atout ? de " + Couleur.values()[i] + " "+Couleur.values()[i].getIsAtout());
-            }
-
-            System.out.println("calcul des scores...");
-
             System.out.println("t1 a belote ? "+equipe1.getBeloteReBelote());
             System.out.println("t2 a belote ? "+equipe2.getBeloteReBelote());
 
