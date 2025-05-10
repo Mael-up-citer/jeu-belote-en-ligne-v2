@@ -49,7 +49,7 @@ public class Humain extends Joueur {
 
     @Override
     public Paquet.Carte jouer(Plis plis) {
-        notifier("Play:" + Rules.playable(plis, this));
+        notifier("Play:" + Rules.playable(plis, noPlayer, main));
         String input = waitForClient();
 
         if (input == null || input.isEmpty()) return null;

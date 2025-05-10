@@ -1,6 +1,7 @@
 package src.main;
 
 import src.main.Paquet.Carte;
+import src.main.Paquet.Carte.Couleur;
 
 
 import java.util.*;
@@ -15,7 +16,7 @@ public abstract class Joueur {
 
     protected Equipe equipe; // L'équipe à laquelle appartient le joueur
     protected String nom; // Le nom du joueur
-    protected HashMap<Paquet.Carte.Couleur, List<Paquet.Carte>> main; // La main du joueur, organisée par couleur
+    protected HashMap<Couleur, List<Carte>> main; // La main du joueur, organisée par couleur
     protected int noPlayer; // Nuémro du jour
     protected boolean hasBeloteAndRe = false;
     protected boolean hasSayBeloteAndRe = false;
@@ -119,7 +120,7 @@ public abstract class Joueur {
     // Supprime la carte c de la main du joueur
     protected void removeCarte(Carte c) throws IllegalArgumentException {
         if (c == null || main.get(c.getCouleur()) == null)
-            throw new IllegalArgumentException("Aucun carte de cette couleur n'hésiste "+c);
+            throw new IllegalArgumentException("Aucune carte de cette couleur n'hésiste "+c);
 
         main.get(c.getCouleur()).remove(c);
     }

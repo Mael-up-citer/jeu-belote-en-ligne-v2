@@ -1,9 +1,11 @@
 import re
 import matplotlib.pyplot as plt
 
+
+
 # Nom du fichier contenant les données
 def main():
-    nom_fichier = 'resultats1.1.txt'
+    nom_fichier = 'nullVsFort.txt'
 
     # Expressions régulières pour extraire les informations
     gagne_pattern = re.compile(r"Équipe gagnante\s*:\s*(Équipe\s*\d+)")

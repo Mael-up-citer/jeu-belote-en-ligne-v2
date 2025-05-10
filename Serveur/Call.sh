@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # Répertoire du script tests.sh
 SCRIPT_PATH="./TestsCompil.sh"
 
@@ -10,12 +11,12 @@ if [[ ! -f "$SCRIPT_PATH" ]]; then
 fi
 
 # Nombre d'itérations
-ITERATIONS=200
+ITERATIONS=50
 
-# Boucle pour appeler le script tests.sh 100 fois
+# Boucle pour appeler le script tests.sh 50 fois
 for i in $(seq 1 $ITERATIONS); do
     ARG1="débutant"
-    ARG2="intermédiaire"
+    ARG2="expert"
 
 
   # Appel du script avec les arguments

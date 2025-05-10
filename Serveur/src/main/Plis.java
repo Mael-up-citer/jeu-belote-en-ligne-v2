@@ -107,6 +107,26 @@ public class Plis {
     }
 
 
+    // Indique si le plis est pour l'equipe du joueur j
+    public boolean isForPlayer(int noCurrentPlayer) {
+        return maitre.getEquipe().equals(Game.joueurs[noCurrentPlayer].getEquipe());
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("État du pli (").append(index).append("/").append(Game.NB_PLAYERS).append(" cartes jouées):\n");
+
+        for (int i = 0; i < index; i++)
+            sb.append(" - ").append(plis[i]).append("\n");
+
+        sb.append("Carte la plus forte : ").append(powerfullCard != null ? powerfullCard : "Aucune").append("\n");
+        sb.append("Joueur maître : ").append(maitre != null ? maitre.getNom() : "Aucun").append("\n");
+        sb.append("Valeur totale du pli : ").append(getValue()).append("\n");
+        return sb.toString();
+    }
+
+
     /**
      * Retourne les cartes jouées dans ce pli.
      * @return Un tableau contenant les cartes du pli.

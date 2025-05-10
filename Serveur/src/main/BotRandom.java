@@ -19,7 +19,7 @@ class BotRandom extends Bot {
     @Override
     public Paquet.Carte jouer(Plis plis) {
 
-        List<Carte> possible = Rules.playable(plis, this);
+        List<Carte> possible = Rules.playable(plis, noPlayer, main);
 
         Random random = new Random();
         int index = random.nextInt(possible.size()); // Génère un index aléatoire dans la taille de la liste
